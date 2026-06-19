@@ -14,9 +14,10 @@ from ..models import NormalizedReport
 from ..template_engine import Branding
 from .docx_renderer import DocxRenderer
 from .pdf_renderer import PdfRenderer
+from .sanitize import sanitize_report
 from .sections import build_context
 
-__all__ = ["DocxRenderer", "PdfRenderer", "render_reports", "build_context"]
+__all__ = ["DocxRenderer", "PdfRenderer", "render_reports", "build_context", "sanitize_report"]
 
 
 def render_reports(
@@ -29,6 +30,9 @@ def render_reports(
     """Render the report in the requested formats; return ``{format: path}``."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    # Strip XML-illegal control characters so neither renderer can be handed an
+    # unrenderable string (common with text extracted from PDFs).
+    sanitize_report(report)
     formats = {f.lower() for f in formats}
     outputs: Dict[str, Path] = {}
     if "pdf" in formats:

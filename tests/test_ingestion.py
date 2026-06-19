@@ -64,3 +64,41 @@ def test_text_sections_and_findings(sample_inputs):
     assert "executive_summary" in result.metadata
     assert "scope" in result.metadata
     assert len(result.findings) == 3
+
+
+def test_nodezero_weakness_extraction():
+    """NodeZero/Horizon3-style PDF text: section-numbered weakness headings + sub-sections."""
+    from krillreport.ingestion.pdf_parser import PDFParser
+
+    text = "\n".join(
+        [
+            "2.1. Kerberoasting HIGH 7.5",
+            "H3-2022-0001",
+            "Details",
+            "Kerberoasting exploits service accounts with weak passwords.",
+            "Affected Assets",
+            "Asset Host Description Downstream Impacts Severity",
+            "svc-one Kerb Tgs Hash for svc-one HIGH 7.5",
+            "svc-two Kerb Tgs Hash for svc-two HIGH 7.5",
+            "Proof",
+            "$ GetUserSPNs.py -request ...",
+            "2.2. SMB Null Session Allowed LOW 0.1",
+            "Details",
+            "SMB allows anonymous null sessions.",
+            "2.3. Git Repo Exposed on a Web Server HIGH 7.5",
+            "Details",
+            "A .git directory is exposed in the web root.",
+            "2.4. tcp/445 microsoft-ds MEDIUM 5",  # port row — must be excluded
+        ]
+    )
+    findings = PDFParser()._nodezero_findings(text, "report.pdf")
+    titles = [f.title for f in findings]
+    assert "Kerberoasting" in titles
+    assert "SMB Null Session Allowed" in titles
+    assert "Git Repo Exposed on a Web Server" in titles
+    assert not any(t.lower().startswith("tcp/") for t in titles)  # port row filtered out
+
+    kerb = next(f for f in findings if f.title == "Kerberoasting")
+    assert kerb.severity.value == "High" and kerb.cvss_score == 7.5
+    assert "svc-one" in kerb.affected_assets and "svc-two" in kerb.affected_assets
+    assert kerb.evidence and "GetUserSPNs" in kerb.evidence[0].text

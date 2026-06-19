@@ -133,6 +133,29 @@ def coerce_float(value: Any) -> Optional[float]:
     return None
 
 
+# Characters illegal in XML 1.0 (and rejected by python-docx/lxml when writing a DOCX).
+# Tab (\x09), LF (\x0a) and CR (\x0d) are legal and preserved; form feed (\x0c) and
+# vertical tab (\x0b) are mapped to newlines; the remaining C0 control bytes are dropped.
+_XML_ILLEGAL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def sanitize_xml(text: Any) -> Any:
+    """Strip XML-illegal control characters so text can be rendered to DOCX/PDF.
+
+    Binary-ish inputs (especially PDFs, e.g. Horizon3/NodeZero reports) frequently carry
+    NUL bytes, form feeds and other control characters that lxml refuses to serialize,
+    raising "All strings must be XML compatible". This makes such text safe to write while
+    preserving readable whitespace. ``None`` and non-strings pass through unchanged-ish.
+    """
+    if text is None or text == "":
+        return text
+    if not isinstance(text, str):
+        text = str(text)
+    if "\x0c" in text or "\x0b" in text:
+        text = text.replace("\x0c", "\n").replace("\x0b", "\n")
+    return _XML_ILLEGAL_RE.sub("", text)
+
+
 def first_non_empty(*values: Any) -> Optional[Any]:
     """Return the first argument that is neither ``None`` nor an empty string/list."""
     for value in values:

@@ -11,6 +11,7 @@ from krillreport.llm_enhancer import Enhancer
 from krillreport.llm_enhancer.base import LLMProvider
 from krillreport.normalization import normalize
 from krillreport.pipeline import run_pipeline
+from krillreport.report_renderer import render_reports
 from krillreport.template_engine import TemplateManager, extract_branding
 
 
@@ -70,6 +71,22 @@ def test_enhancer_stub_llm(sample_inputs):
     Enhancer(LLMSettings(provider="offline", enabled=True), provider=Stub()).enhance_report(report)
     assert report.metadata.executive_summary == "STUB"
     assert report.findings[0].description == "D"
+
+
+def test_render_sanitizes_control_chars(tmp_path):
+    """Control characters (e.g. from PDF text) must not break DOCX/PDF rendering."""
+    from krillreport.models import EngagementMetadata, Finding, NormalizedReport
+
+    report = NormalizedReport(
+        metadata=EngagementMetadata(client_name="ACME\x00Corp"),
+        findings=[Finding(title="Title\x0cbreak", description="a\x00b\x01c\x0bd\x0ce control bytes")],
+    )
+    outputs = render_reports(report, None, tmp_path / "out", "r", formats=("pdf", "docx"))
+    assert outputs["docx"].exists() and zipfile.is_zipfile(outputs["docx"])
+    assert outputs["pdf"].read_bytes()[:4] == b"%PDF"
+    # The illegal control bytes are stripped from the model during rendering.
+    assert "\x00" not in report.findings[0].description
+    assert "\x00" not in report.metadata.client_name
 
 
 def test_full_pipeline_renders_both_formats(sample_inputs, tmp_path):
