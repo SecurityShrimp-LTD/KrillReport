@@ -1,0 +1,31 @@
+Executive Summary:
+The internal network assessment uncovered weak segmentation and a legacy service with
+default credentials. An attacker on the user VLAN could reach sensitive management
+interfaces with minimal effort.
+
+Scope:
+- 10.10.0.0/16 internal range
+- Active Directory domain corp.acme.example
+
+Finding: Default Credentials on Network Management Console
+Severity: High
+Description: The network management console at https://10.10.5.5 accepted the vendor
+default credentials admin/admin, granting full administrative control over switching
+infrastructure.
+Remediation: Change all default credentials and enforce centralized authentication
+with MFA for management interfaces.
+Affected: https://10.10.5.5/
+
+Finding: Flat Network Segmentation
+Severity: Medium
+Description: The user VLAN could reach server and management VLANs without restriction,
+enabling lateral movement after a single workstation compromise.
+Remediation: Implement VLAN segmentation and restrict inter-VLAN traffic with ACLs to
+only required ports and protocols.
+
+Finding: SMBv1 Enabled on File Servers
+Severity: Medium
+Description: Legacy SMBv1 was enabled on two file servers, exposing them to known
+wormable exploits.
+Remediation: Disable SMBv1 and require SMB signing.
+Affected: 10.10.20.11, 10.10.20.12

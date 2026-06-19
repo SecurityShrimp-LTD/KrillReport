@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "krillreport"
+version = "1.0.0"
+description = "Ingest security-tool output and generate branded pentest / red-team reports in PDF and DOCX, with optional LLM narrative enhancement."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "See LICENSE" }
+authors = [{ name = "KrillReport" }]
+keywords = ["pentest", "red-team", "report", "security", "docx", "pdf"]
+
+dependencies = [
+    "pydantic>=2.5",
+    "pydantic-settings>=2.1",
+    "PyYAML>=6.0",
+    "lxml>=5.0",
+    "python-docx>=1.1",
+    "pdfplumber>=0.10",
+    "weasyprint>=60",
+    "Jinja2>=3.1",
+    "Pillow>=10.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "python-multipart>=0.0.9",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+# Pull in a specific provider with: pip install "krillreport[anthropic]"
+anthropic = ["anthropic>=0.39"]
+openai = ["openai>=1.30"]
+ollama = ["httpx>=0.27"]
+# Everything, for convenience.
+all = ["anthropic>=0.39", "openai>=1.30", "httpx>=0.27"]
+
+[project.scripts]
+# Installs a `krillreport` command that dispatches to the Click CLI.
+krillreport = "krillreport.cli.main:cli"
+
+[tool.setuptools.packages.find]
+include = ["krillreport*"]
+
+[tool.setuptools.package-data]
+# Ship the Jinja templates and static assets inside the wheel.
+"krillreport.report_renderer" = ["templates/*.html", "templates/*.css"]
+"krillreport.api" = ["templates/*.html", "static/*"]

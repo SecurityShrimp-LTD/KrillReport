@@ -1,0 +1,32 @@
+client: ACME Corporation
+project: Internal Red Team Engagement
+engagement: Internal Red Team Engagement
+start_date: 2026-05-18
+end_date: 2026-05-29
+methodology: |
+  The engagement followed the MITRE ATT&CK framework across initial access,
+  privilege escalation, lateral movement, and exfiltration phases. Assumed-breach
+  access was provided via a standard domain user account.
+findings:
+  - title: Domain Compromise via Kerberoasting
+    severity: critical
+    cvss: 9.0
+    description: >
+      Multiple service accounts were configured with weak, crackable passwords and
+      service principal names (SPNs). Requesting and cracking the associated TGS
+      tickets offline yielded plaintext credentials for a Domain Admin account.
+    impact: Complete compromise of the Active Directory domain and all joined systems.
+    remediation: >
+      Enforce 25+ character passwords (or group Managed Service Accounts) for all
+      service accounts and monitor for anomalous TGS requests.
+    affected:
+      - DC01.corp.acme.example
+      - SQLSVC service account
+    references:
+      - https://attack.mitre.org/techniques/T1558/003/
+  - title: Phishing Leading to Workstation Compromise
+    severity: high
+    description: A targeted phishing email with a macro-enabled document was opened by 3 of 20 recipients, yielding command execution.
+    remediation: Deploy attachment sandboxing, disable Office macros from the internet, and run recurring phishing simulations.
+    affected:
+      - HR-WS-04

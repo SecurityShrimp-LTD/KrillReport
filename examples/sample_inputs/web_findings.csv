@@ -1,0 +1,5 @@
+title,severity,cvss,description,remediation,affected_url,cwe
+Reflected Cross-Site Scripting,High,7.4,User-supplied input in the search parameter is reflected without output encoding.,Encode all user-controlled output and deploy a strict Content-Security-Policy.,https://app.acme.example/search?q=,CWE-79
+SQL Injection in Login Form,Critical,9.1,The username field is concatenated directly into a SQL query allowing authentication bypass and data extraction.,Use parameterized queries / prepared statements and apply least-privilege DB accounts.,https://app.acme.example/login,CWE-89
+Verbose Error Messages,Low,3.1,Stack traces and framework versions are disclosed on unhandled exceptions.,Disable debug mode in production and return generic error pages.,https://app.acme.example/,CWE-209
+Missing Security Headers,Informational,0.0,"Responses lack HSTS, X-Content-Type-Options and X-Frame-Options headers.",Add standard security response headers at the web server or framework level.,https://app.acme.example/,CWE-693

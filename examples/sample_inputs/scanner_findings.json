@@ -1,0 +1,41 @@
+{
+  "engagement": {
+    "client": "ACME Corporation",
+    "project": "External Network Penetration Test",
+    "start_date": "2026-05-04",
+    "end_date": "2026-05-15",
+    "version": "1.0",
+    "classification": "CONFIDENTIAL"
+  },
+  "scope": ["203.0.113.0/24", "app.acme.example", "mail.acme.example"],
+  "assessors": ["Jordan Reyes", "Sam Okafor"],
+  "findings": [
+    {
+      "plugin_name": "Apache Struts 2 Remote Code Execution (S2-045)",
+      "risk_factor": "Critical",
+      "cvss3_base_score": 9.8,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+      "cve": ["CVE-2017-5638"],
+      "synopsis": "The remote web server is affected by a remote code execution vulnerability in the Jakarta Multipart parser.",
+      "solution": "Upgrade Apache Struts to 2.3.32 / 2.5.10.1 or later.",
+      "host": "203.0.113.10",
+      "plugin_output": "POST /upload.action with crafted Content-Type yielded `id` => uid=0(root)"
+    },
+    {
+      "name": "TLS 1.0 / 1.1 Protocols Enabled",
+      "severity": "Medium",
+      "description": "The server supports deprecated TLS 1.0 and 1.1 protocols which are vulnerable to known attacks (BEAST, POODLE).",
+      "recommendation": "Disable TLS 1.0 and 1.1; require TLS 1.2 or higher.",
+      "affected": ["203.0.113.20", "203.0.113.21"],
+      "cwe": "CWE-327"
+    },
+    {
+      "title": "Apache Struts 2 RCE",
+      "risk": "High",
+      "cve": "CVE-2017-5638",
+      "description": "Confirmed via a second tool against an additional host.",
+      "host": "203.0.113.11",
+      "tool": "metasploit"
+    }
+  ]
+}

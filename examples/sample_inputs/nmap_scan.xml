@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<nmaprun scanner="nmap" args="nmap -sV -oX">
+  <host>
+    <status state="up"/>
+    <address addr="203.0.113.40" addrtype="ipv4"/>
+    <hostnames><hostname name="db01.acme.example" type="PTR"/></hostnames>
+    <ports>
+      <port protocol="tcp" portid="22">
+        <state state="open"/>
+        <service name="ssh" product="OpenSSH" version="9.2p1"/>
+      </port>
+      <port protocol="tcp" portid="5432">
+        <state state="open"/>
+        <service name="postgresql" product="PostgreSQL DB" version="14.2"/>
+      </port>
+    </ports>
+    <os><osmatch name="Linux 5.x" accuracy="96"/></os>
+  </host>
+  <host>
+    <status state="up"/>
+    <address addr="203.0.113.10" addrtype="ipv4"/>
+    <hostnames><hostname name="web01.acme.example" type="PTR"/></hostnames>
+    <ports>
+      <port protocol="tcp" portid="443">
+        <state state="open"/>
+        <service name="https" product="nginx" version="1.25.3"/>
+      </port>
+    </ports>
+  </host>
+</nmaprun>

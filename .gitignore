@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- KrillReport runtime data ---
+krilldata/
+*.log
+
+# Generated example artifacts (recreate with: python examples/make_sample_template.py)
+examples/sample_templates/

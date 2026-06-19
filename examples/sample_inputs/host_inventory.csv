@@ -1,0 +1,5 @@
+ip,hostname,os,port,service,product,version
+203.0.113.10,web01.acme.example,Ubuntu 22.04 LTS,443,https,nginx,1.25.3
+203.0.113.20,mail01.acme.example,Windows Server 2019,25,smtp,Exchange,2019
+203.0.113.30,ssh01.acme.example,Debian 12,22,ssh,OpenSSH,9.2
+203.0.113.40,db01.acme.example,Rocky Linux 9,5432,postgresql,PostgreSQL,14.2

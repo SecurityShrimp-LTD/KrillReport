@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+
+<section class="card">
+  <h2>Generate a report</h2>
+  <form action="/generate" method="post" enctype="multipart/form-data">
+    <label class="field">
+      <span class="label">Tool output / data files</span>
+      <input type="file" name="files" multiple required
+             accept="{{ supported_extensions | join(',') }}">
+      <small>Upload one or more files ({{ supported_extensions | join(', ') }}).</small>
+    </label>
+
+    <div class="row">
+      <label class="field">
+        <span class="label">Branding template</span>
+        <select name="template">
+          {% for t in templates %}
+            <option value="{{ t.name }}">{{ t.display_name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <fieldset class="field formats">
+        <span class="label">Output format</span>
+        <label><input type="checkbox" name="formats" value="pdf" checked> PDF</label>
+        <label><input type="checkbox" name="formats" value="docx" checked> DOCX</label>
+      </fieldset>
+    </div>
+
+    <details class="field">
+      <summary>Engagement details (optional overrides)</summary>
+      <div class="grid2">
+        <label class="field"><span class="label">Client</span><input type="text" name="client" placeholder="ACME Corporation"></label>
+        <label class="field"><span class="label">Project</span><input type="text" name="project" placeholder="External Penetration Test"></label>
+        <label class="field"><span class="label">Report title</span><input type="text" name="report_title" placeholder="Security Assessment Report"></label>
+        <label class="field"><span class="label">Engagement type</span><input type="text" name="engagement_type" placeholder="Penetration Test / Red Team"></label>
+        <label class="field"><span class="label">Classification</span><input type="text" name="classification" placeholder="CONFIDENTIAL"></label>
+      </div>
+    </details>
+
+    <details class="field">
+      <summary>Narrative enhancement</summary>
+      <div class="grid2">
+        <label class="field">
+          <span class="label">LLM provider</span>
+          <select name="provider">
+            {% for p in providers %}
+              <option value="{{ p }}" {{ 'selected' if p == current_provider else '' }}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field"><span class="label">Model (optional)</span><input type="text" name="model" placeholder="provider default"></label>
+      </div>
+      <label class="check"><input type="checkbox" name="enhance" value="on" checked> Enhance narrative sections</label>
+      <small>The <strong>offline</strong> provider fills missing prose deterministically — no
+        credentials or network needed. Other providers require their API key in the environment.</small>
+    </details>
+
+    <button type="submit" class="btn primary">Generate report</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Branding templates</h2>
+  <table class="tmpl-table">
+    <thead><tr><th></th><th>Name</th><th>Heading font</th><th>Logo</th><th></th></tr></thead>
+    <tbody>
+      {% for t in templates %}
+      <tr>
+        <td><span class="swatch" style="background: {{ t.primary_color }}"></span></td>
+        <td>{{ t.display_name }} <span class="muted">({{ t.name }})</span></td>
+        <td>{{ t.heading_font }}</td>
+        <td>{{ 'yes' if t.logo_path else '—' }}</td>
+        <td>
+          {% if t.name != 'default' %}
+          <form action="/templates/{{ t.name }}/delete" method="post" onsubmit="return confirm('Delete template {{ t.name }}?')">
+            <button type="submit" class="btn danger small">Delete</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form action="/templates" method="post" enctype="multipart/form-data" class="inline-form">
+    <label class="field">
+      <span class="label">Add template from a branded sample</span>
+      <input type="file" name="sample" accept="{{ template_extensions | join(',') }}" required>
+      <small>Upload a sample {{ template_extensions | join(' or ') }} report; fonts, colours and logo are extracted.</small>
+    </label>
+    <label class="field"><span class="label">Template name</span><input type="text" name="name" placeholder="ACME Corp"></label>
+    <button type="submit" class="btn">Add template</button>
+  </form>
+</section>
+
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Report generated — KrillReport{% endblock %}
+{% block content %}
+
+<section class="card">
+  <h2>✓ Report generated</h2>
+  <table class="summary">
+    <tr><td class="k">Title</td><td>{{ report.metadata.report_title }}</td></tr>
+    <tr><td class="k">Client</td><td>{{ report.metadata.client_name or '—' }}</td></tr>
+    <tr><td class="k">Engagement</td><td>{{ report.metadata.engagement_type.value }}</td></tr>
+    <tr><td class="k">Template</td><td>{{ template_name }}</td></tr>
+    <tr><td class="k">Inputs</td><td>{{ input_count }} file(s)</td></tr>
+    <tr><td class="k">Enhancement</td><td>{{ enhancement_mode }}</td></tr>
+    <tr><td class="k">Findings</td><td>
+      {% for row in summary.by_severity %}{% if row.count %}<span class="chip" style="background: {{ row.color }}">{{ row.severity.value }} {{ row.count }}</span>{% endif %}{% endfor %}
+      {% if summary.total_findings == 0 %}<span class="muted">None</span>{% endif %}
+    </td></tr>
+    <tr><td class="k">Hosts</td><td>{{ summary.total_hosts }}</td></tr>
+  </table>
+
+  <div class="downloads">
+    {% for d in downloads %}
+      <a class="btn primary" href="{{ d.url }}" download>⬇ Download {{ d.format }}</a>
+    {% endfor %}
+  </div>
+</section>
+
+{% if warnings %}
+<section class="card">
+  <h3>Warnings ({{ warnings | length }})</h3>
+  <ul class="warnings">
+    {% for w in warnings %}<li>{{ w }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<p><a class="btn" href="/">← Generate another report</a></p>
+
+{% endblock %}

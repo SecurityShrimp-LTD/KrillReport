@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+  /* ---- Page setup & running header/footer ---------------------------- */
+  @page {
+    size: {{ branding.css_variables()['page-size'] }};
+    margin: 22mm 18mm 20mm 18mm;
+    @top-center {
+      content: "{{ header_text }}";
+      font-family: {{ branding.body_font_stack() }};
+      font-size: 8pt;
+      color: {{ branding.muted_color }};
+    }
+    @bottom-left {
+      content: "{{ footer_text }}";
+      font-family: {{ branding.body_font_stack() }};
+      font-size: 8pt;
+      color: {{ branding.muted_color }};
+    }
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font-family: {{ branding.body_font_stack() }};
+      font-size: 8pt;
+      color: {{ branding.muted_color }};
+    }
+  }
+  /* Cover page has no running chrome. */
+  @page cover { margin: 0; @top-center { content: none } @bottom-left { content: none } @bottom-right { content: none } }
+
+  html { font-family: {{ branding.body_font_stack() }}; font-size: 10.5pt; color: {{ branding.text_color }}; line-height: 1.5; }
+  body { margin: 0; }
+
+  h1, h2, h3, h4 { font-family: {{ branding.heading_font_stack() }}; color: {{ branding.primary_color }}; line-height: 1.25; }
+  h2 { font-size: 17pt; border-bottom: 2px solid {{ branding.primary_color }}; padding-bottom: 4px; margin-top: 26px; }
+  h3 { font-size: 13pt; color: {{ branding.secondary_color }}; margin-top: 20px; }
+  h4 { font-size: 11pt; color: {{ branding.text_color }}; margin: 12px 0 4px; text-transform: uppercase; letter-spacing: .04em; }
+  a { color: {{ branding.accent_color }}; text-decoration: none; word-break: break-all; }
+  p { margin: 6px 0; }
+  .muted { color: {{ branding.muted_color }}; }
+
+  /* ---- Cover --------------------------------------------------------- */
+  .cover { page: cover; height: 100vh; display: flex; flex-direction: column; }
+  .cover-band { background: {{ branding.primary_color }}; color: #fff; padding: 26mm 18mm 16mm; }
+  .cover-band img { max-height: 70px; margin-bottom: 18px; }
+  .cover-title { font-family: {{ branding.heading_font_stack() }}; font-size: 30pt; font-weight: 700; color: #fff; margin: 0; }
+  .cover-sub { font-size: 13pt; opacity: .9; margin-top: 8px; }
+  .cover-body { padding: 16mm 18mm; flex: 1; }
+  .cover-meta { width: 100%; border-collapse: collapse; margin-top: 8mm; }
+  .cover-meta td { padding: 7px 4px; border-bottom: 1px solid #e2e6ea; font-size: 10.5pt; vertical-align: top; }
+  .cover-meta td.k { color: {{ branding.muted_color }}; width: 32%; text-transform: uppercase; font-size: 8.5pt; letter-spacing: .05em; }
+  .classification-tag { display: inline-block; background: {{ branding.accent_color }}; color: #fff; font-size: 9pt; font-weight: 700; padding: 3px 12px; border-radius: 3px; letter-spacing: .08em; }
+
+  /* ---- Table of contents -------------------------------------------- */
+  .toc { break-after: page; }
+  .toc ul { list-style: none; padding-left: 0; }
+  .toc li { padding: 4px 0; border-bottom: 1px dotted #d7dce1; }
+  .toc a { color: {{ branding.text_color }}; }
+  .toc a::after { content: target-counter(attr(href), page); float: right; color: {{ branding.muted_color }}; }
+  .toc .sub { padding-left: 16px; font-size: 9.5pt; }
+
+  /* ---- Severity badges & chart -------------------------------------- */
+  .badge { display: inline-block; color: #fff; font-size: 8.5pt; font-weight: 700; padding: 2px 9px; border-radius: 10px; letter-spacing: .03em; }
+  .chart { margin: 12px 0 6px; }
+  .chart-row { display: flex; align-items: center; margin: 5px 0; font-size: 9.5pt; }
+  .chart-row .name { width: 110px; color: {{ branding.text_color }}; }
+  .chart-track { flex: 1; background: #eef1f4; border-radius: 3px; height: 16px; position: relative; }
+  .chart-fill { height: 16px; border-radius: 3px; }
+  .chart-row .num { width: 34px; text-align: right; font-weight: 700; }
+
+  table.grid { width: 100%; border-collapse: collapse; margin: 8px 0 4px; font-size: 9.5pt; }
+  table.grid th { background: {{ branding.primary_color }}; color: #fff; text-align: left; padding: 6px 8px; font-family: {{ branding.heading_font_stack() }}; font-weight: 600; }
+  table.grid td { padding: 6px 8px; border-bottom: 1px solid #e5e9ed; vertical-align: top; }
+  table.grid tr:nth-child(even) td { background: #f7f9fa; }
+
+  /* ---- Finding card -------------------------------------------------- */
+  .finding { margin-top: 22px; break-inside: avoid-page; }
+  .finding-head { display: flex; align-items: center; gap: 10px; }
+  .finding-head h3 { margin: 0; flex: 1; color: {{ branding.primary_color }}; }
+  .meta-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9pt; }
+  .meta-table td { padding: 4px 8px; border: 1px solid #e5e9ed; }
+  .meta-table td.k { background: #f2f5f7; color: {{ branding.muted_color }}; width: 16%; text-transform: uppercase; font-size: 8pt; letter-spacing: .04em; white-space: nowrap; }
+  pre.evidence { background: #1e2530; color: #e6edf3; padding: 10px 12px; border-radius: 4px; font-family: {{ branding.mono_font_stack() }}; font-size: 8.5pt; white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; }
+  .evidence-cap { font-size: 8.5pt; color: {{ branding.muted_color }}; margin: 8px 0 2px; }
+  ul.assets { margin: 4px 0; padding-left: 18px; }
+  .section { break-inside: auto; }
+  .no-findings { padding: 14px; background: #eef7ee; border-left: 4px solid #2e7d32; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ======================= COVER ======================= -->
+<section class="cover">
+  <div class="cover-band">
+    {% if logo_uri %}<img src="{{ logo_uri }}" alt="logo">{% endif %}
+    <h1 class="cover-title">{{ title }}</h1>
+    <div class="cover-sub">{{ engagement_type }}{% if client %} — {{ client }}{% endif %}</div>
+  </div>
+  <div class="cover-body">
+    <span class="classification-tag">{{ classification }}</span>
+    <table class="cover-meta">
+      {% if client %}<tr><td class="k">Client</td><td>{{ client }}</td></tr>{% endif %}
+      {% if metadata.project_name %}<tr><td class="k">Project</td><td>{{ metadata.project_name }}</td></tr>{% endif %}
+      <tr><td class="k">Engagement Type</td><td>{{ engagement_type }}</td></tr>
+      <tr><td class="k">Assessment Window</td><td>{{ date_range }}</td></tr>
+      {% if assessors %}<tr><td class="k">Assessors</td><td>{{ assessors }}</td></tr>{% endif %}
+      <tr><td class="k">Overall Risk</td><td><span class="badge" style="background: {{ posture_color }}">{{ posture_label }}</span></td></tr>
+      <tr><td class="k">Report Version</td><td>{{ version }}</td></tr>
+      <tr><td class="k">Date Issued</td><td>{{ generated }}</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ======================= TOC ======================= -->
+<section class="toc">
+  <h2>Contents</h2>
+  <ul>
+    {% if metadata.executive_summary %}<li><a href="#sec-exec">Executive Summary</a></li>{% endif %}
+    {% if scope %}<li><a href="#sec-scope">Scope</a></li>{% endif %}
+    {% if metadata.methodology %}<li><a href="#sec-method">Methodology</a></li>{% endif %}
+    {% if has_findings %}<li><a href="#sec-summary">Findings Summary</a></li>{% endif %}
+    {% if has_findings %}
+      <li><a href="#sec-findings">Detailed Findings</a></li>
+      {% for num, f in numbered_findings %}
+        <li class="sub"><a href="#finding-{{ num }}">{{ num }}. {{ f.title }}</a></li>
+      {% endfor %}
+    {% endif %}
+    {% if has_hosts %}<li><a href="#sec-assets">Asset Inventory</a></li>{% endif %}
+    {% if metadata.conclusion %}<li><a href="#sec-conclusion">Conclusion</a></li>{% endif %}
+    {% for ap in appendices %}<li><a href="#appendix-{{ loop.index }}">Appendix {{ loop.index }}: {{ ap.title }}</a></li>{% endfor %}
+  </ul>
+</section>
+
+<!-- ======================= EXECUTIVE SUMMARY ======================= -->
+{% if metadata.executive_summary %}
+<section class="section">
+  <h2 id="sec-exec">Executive Summary</h2>
+  {{ metadata.executive_summary | paras }}
+</section>
+{% endif %}
+
+<!-- ======================= SCOPE ======================= -->
+{% if scope %}
+<section class="section">
+  <h2 id="sec-scope">Scope</h2>
+  <p>The following targets were in scope for this engagement:</p>
+  <ul class="assets">
+    {% for item in scope %}<li>{{ item }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<!-- ======================= METHODOLOGY ======================= -->
+{% if metadata.methodology %}
+<section class="section">
+  <h2 id="sec-method">Methodology</h2>
+  {{ metadata.methodology | paras }}
+</section>
+{% endif %}
+
+<!-- ======================= FINDINGS SUMMARY ======================= -->
+{% if has_findings %}
+<section class="section">
+  <h2 id="sec-summary">Findings Summary</h2>
+  <p>A total of <strong>{{ summary.total_findings }}</strong> finding(s) were identified.
+     The overall risk posture is <span class="badge" style="background: {{ posture_color }}">{{ posture_label }}</span>.</p>
+  <div class="chart">
+    {% for row in severity_rows %}
+    <div class="chart-row">
+      <span class="name">{{ row.label }}</span>
+      <span class="chart-track"><span class="chart-fill" style="width: {{ row.pct if row.count else 0 }}%; background: {{ row.color }}"></span></span>
+      <span class="num">{{ row.count }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <table class="grid">
+    <thead><tr><th>#</th><th>Finding</th><th>Severity</th><th>CVSS</th><th>Affected</th></tr></thead>
+    <tbody>
+    {% for num, f in numbered_findings %}
+      <tr>
+        <td>{{ num }}</td>
+        <td>{{ f.title }}</td>
+        <td><span class="badge" style="background: {{ branding.severity_color(f.severity) }}">{{ f.severity.value }}</span></td>
+        <td>{{ '%.1f' % f.cvss_score if f.cvss_score is not none else '—' }}</td>
+        <td>{{ f.affected_assets | join(', ') if f.affected_assets else '—' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<!-- ======================= DETAILED FINDINGS ======================= -->
+<section class="section">
+  <h2 id="sec-findings">Detailed Findings</h2>
+  {% for num, f in numbered_findings %}
+  <div class="finding">
+    <div class="finding-head">
+      <h3 id="finding-{{ num }}">{{ num }}. {{ f.title }}</h3>
+      <span class="badge" style="background: {{ branding.severity_color(f.severity) }}">{{ f.severity.value }}</span>
+    </div>
+    <table class="meta-table">
+      <tr>
+        <td class="k">Severity</td><td>{{ f.severity.value }}</td>
+        <td class="k">CVSS</td><td>{{ ('%.1f' % f.cvss_score) if f.cvss_score is not none else '—' }}{% if f.cvss_vector %} <span class="muted">({{ f.cvss_vector }})</span>{% endif %}</td>
+      </tr>
+      <tr>
+        <td class="k">Category</td><td>{{ f.category or '—' }}</td>
+        <td class="k">Status</td><td>{{ f.status.value }}</td>
+      </tr>
+      {% if f.cve or f.cwe %}
+      <tr>
+        <td class="k">CVE</td><td>{{ f.cve | join(', ') if f.cve else '—' }}</td>
+        <td class="k">CWE</td><td>{{ f.cwe | join(', ') if f.cwe else '—' }}</td>
+      </tr>
+      {% endif %}
+      {% if f.affected_assets %}
+      <tr><td class="k">Affected</td><td colspan="3">{{ f.affected_assets | join(', ') }}</td></tr>
+      {% endif %}
+    </table>
+
+    {% if f.description %}<h4>Description</h4>{{ f.description | paras }}{% endif %}
+    {% if f.impact %}<h4>Impact</h4>{{ f.impact | paras }}{% endif %}
+
+    {% if f.evidence %}
+      <h4>Evidence</h4>
+      {% for ev in f.evidence %}
+        {% if ev.caption %}<div class="evidence-cap">{{ ev.caption }}</div>{% endif %}
+        {% if ev.text %}<pre class="evidence">{{ ev.text }}</pre>{% endif %}
+        {% set ev_uri = ev.image_path | data_uri %}
+        {% if ev_uri %}<img src="{{ ev_uri }}" style="max-width:100%; border:1px solid #ccc; margin:6px 0;">{% endif %}
+      {% endfor %}
+    {% endif %}
+
+    {% if f.remediation %}<h4>Remediation</h4>{{ f.remediation | paras }}{% endif %}
+
+    {% if f.references %}
+      <h4>References</h4>
+      <ul class="assets">
+        {% for ref in f.references %}
+          <li>{% if ref.url %}<a href="{{ ref.url }}">{{ ref.title or ref.url }}</a>{% else %}{{ ref.title }}{% endif %}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% else %}
+<section class="section">
+  <h2 id="sec-summary">Findings Summary</h2>
+  <p class="no-findings">No findings were identified or imported for this engagement.</p>
+</section>
+{% endif %}
+
+<!-- ======================= ASSET INVENTORY ======================= -->
+{% if has_hosts %}
+<section class="section">
+  <h2 id="sec-assets">Asset Inventory</h2>
+  <table class="grid">
+    <thead><tr><th>Host</th><th>IP Address</th><th>Operating System</th><th>Services</th></tr></thead>
+    <tbody>
+    {% for h in hosts %}
+      <tr>
+        <td>{{ h.hostname or '—' }}</td>
+        <td>{{ h.ip_address or '—' }}</td>
+        <td>{{ h.operating_system or '—' }}</td>
+        <td>{% for s in h.services %}{{ s.label() }}{% if not loop.last %}<br>{% endif %}{% endfor %}{% if not h.services %}—{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<!-- ======================= CONCLUSION ======================= -->
+{% if metadata.conclusion %}
+<section class="section">
+  <h2 id="sec-conclusion">Conclusion</h2>
+  {{ metadata.conclusion | paras }}
+</section>
+{% endif %}
+
+<!-- ======================= APPENDICES ======================= -->
+{% for ap in appendices %}
+<section class="section">
+  <h2 id="appendix-{{ loop.index }}">Appendix {{ loop.index }}: {{ ap.title }}</h2>
+  {{ ap.content | paras }}
+</section>
+{% endfor %}
+
+</body>
+</html>

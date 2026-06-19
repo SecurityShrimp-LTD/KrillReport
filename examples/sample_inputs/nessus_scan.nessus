@@ -1,0 +1,24 @@
+<?xml version="1.0" ?>
+<NessusClientData_v2>
+  <Report name="ACME External">
+    <ReportHost name="203.0.113.30">
+      <ReportItem port="22" svc_name="ssh" protocol="tcp" severity="2" pluginName="OpenSSH &lt; 7.4 User Enumeration">
+        <risk_factor>Medium</risk_factor>
+        <synopsis>The remote SSH server is affected by a user enumeration vulnerability.</synopsis>
+        <description>By measuring response timing differences, a remote attacker can determine whether a given username exists on the OpenSSH server.</description>
+        <solution>Upgrade OpenSSH to version 7.4 or later.</solution>
+        <cvss3_base_score>5.3</cvss3_base_score>
+        <cve>CVE-2018-15473</cve>
+      </ReportItem>
+    </ReportHost>
+    <ReportHost name="203.0.113.20">
+      <ReportItem port="25" svc_name="smtp" protocol="tcp" severity="3" pluginName="SMTP Server Open Relay">
+        <risk_factor>High</risk_factor>
+        <synopsis>The remote SMTP server is an open relay.</synopsis>
+        <description>The remote SMTP server accepts and relays mail for arbitrary recipients, allowing spam and phishing abuse.</description>
+        <solution>Reconfigure the SMTP server to only relay mail for authenticated or trusted hosts.</solution>
+        <cvss3_base_score>7.5</cvss3_base_score>
+      </ReportItem>
+    </ReportHost>
+  </Report>
+</NessusClientData_v2>
