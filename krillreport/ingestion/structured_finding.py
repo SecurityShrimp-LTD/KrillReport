@@ -199,6 +199,30 @@ def _strip_hr(text: str) -> str:
     return "\n".join(out).strip()
 
 
+# Handling/operator-note language: these blocks are evidence-file instructions for the
+# tester (redact before delivery, internal-only, contains secrets), not client-facing
+# finding prose, so they are dropped from the report body.
+_OPERATOR_RE = re.compile(
+    r"operator copy|operator[\s-]?only|operator evidence|internal[\s-]?only|"
+    r"internal use|for internal|do not (?:distribute|deliver|share|send|publish)|"
+    r"before deliver|before .{0,25}client|\bsanitize\b|\bredact|"
+    r"live secrets?|contains? .{0,25}secrets?|strip .{0,30}before|remove .{0,30}before|"
+    r"redacted version",
+    re.IGNORECASE,
+)
+
+
+def _is_operator_note(text: str) -> bool:
+    return bool(_OPERATOR_RE.search(text))
+
+
+def _strip_operator_notes(text: str) -> str:
+    """Drop preamble blocks (callouts/paragraphs) that are operator-handling notes."""
+    blocks = re.split(r"\n\s*\n", text)
+    kept = [b for b in blocks if not _is_operator_note(re.sub(r"(?m)^\s*>\s?", "", b))]
+    return "\n\n".join(kept).strip()
+
+
 def _assets_from_value(value: str) -> List[str]:
     """Pull the primary identifier from a KV value (the first code span, else the value)."""
     spans = re.findall(r"`([^`]+)`", value)
@@ -271,7 +295,7 @@ def build_structured_record(text: str) -> Tuple[Dict[str, object], Optional[Find
     remediation_parts: List[str] = []
     reference_parts: List[str] = []
 
-    preamble_text = _strip_hr("\n".join(preamble_rest))
+    preamble_text = _strip_operator_notes(_strip_hr("\n".join(preamble_rest)))
     if preamble_text:
         description_parts.append(preamble_text)
     # Preserve KV rows we could not map (e.g. Date, Tester platform) as a small list.

@@ -43,8 +43,25 @@ def test_structured_record_maps_metadata_and_sections():
     desc = record["description"]
     assert "### 1. Summary" in desc
     assert "arp-scan" in desc  # the fenced reproduction code survives
-    assert "OPERATOR COPY" in desc  # the leading callout is preserved
+    assert "OPERATOR COPY" not in desc  # the operator-handling callout is dropped
     assert "**Date:** 2026-06-17" in desc  # unmapped KV row kept, not dropped
+
+
+def test_operator_header_dropped_but_section_notes_kept():
+    text = (
+        "# Finding — Example Issue\n\n"
+        "> ⚠ **OPERATOR COPY — CONTAINS LIVE SECRETS.** Sanitize and redact "
+        "credentials before delivering to the client.\n\n"
+        "| | |\n|---|---|\n| **Severity** | High |\n\n"
+        "## 1. Summary\n\nThe service is misconfigured.\n\n"
+        "> Note: this technical caveat is legitimate finding content.\n"
+    )
+    record, _ = build_structured_record(text)
+    desc = record["description"]
+    assert "OPERATOR COPY" not in desc
+    assert "Sanitize" not in desc
+    # An in-section blockquote that is not a handling note must survive.
+    assert "this technical caveat is legitimate finding content" in desc
 
 
 def test_full_ingest_yields_single_finding():
