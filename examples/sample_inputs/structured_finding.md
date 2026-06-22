@@ -23,12 +23,12 @@ other guest device, enabling **ARP-spoofing man-in-the-middle** between guests.
 | Component | Detail |
 |---|---|
 | SSID | `Guest_WiFi` — open (`key_mgmt=NONE`) with captive portal |
-| Guest VLAN | `10.54.0.0/22`, gateway `10.54.0.1` |
+| Guest VLAN | `10.0.0.0/16`, gateway `10.0.0.1` |
 
 ## 3. Reproduction
 
 ```bash
-arp-scan -I wlan0 10.54.0.0/22
+arp-scan -I wlan0 10.0.0.0/16
 # -> ~72 hosts answered, each a distinct MAC -> AP forwards client-to-client traffic
 ```
 
