@@ -240,8 +240,16 @@ class Reference(BaseModel):
         text = str(value).strip()
         if not text:
             return None
-        if text.startswith(("http://", "https://")):
-            return cls(title=text, url=text)
+        # Markdown link: ``[title](url)`` -> title + url.
+        link = re.search(r"\[([^\]]+)\]\(\s*(https?://[^)\s]+)\s*\)", text)
+        if link:
+            return cls(title=link.group(1).strip(), url=link.group(2).strip())
+        # A bare URL, possibly embedded in "Title — https://..." style text.
+        bare = re.search(r"https?://[^\s|)\]]+", text)
+        if bare:
+            url = bare.group(0)
+            title = text.replace(url, "").strip(" \t-—–:|[]()")
+            return cls(title=title or url, url=url)
         return cls(title=text, url="")
 
 

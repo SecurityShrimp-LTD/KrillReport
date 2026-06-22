@@ -214,12 +214,22 @@ def _extract_codes(text: str, regex: re.Pattern) -> List[str]:
 def _build_references(value: Any) -> List[Reference]:
     refs: List[Reference] = []
     for element in ensure_list(value):
-        # A reference field may itself be a delimited string of URLs.
-        if isinstance(element, str) and _MULTI_SPLIT_RE.search(element):
-            for part in split_multi(element):
-                ref = Reference.from_value(part)
-                if ref:
-                    refs.append(ref)
+        # A reference field may itself be a delimited string of URLs. Pipe-separated
+        # lists (common in Markdown) are split first, then the usual comma/newline rules.
+        if isinstance(element, str):
+            for piece in re.split(r"\s*\|\s*", element):
+                piece = piece.strip()
+                if not piece:
+                    continue
+                if _MULTI_SPLIT_RE.search(piece):
+                    for part in split_multi(piece):
+                        ref = Reference.from_value(part)
+                        if ref:
+                            refs.append(ref)
+                else:
+                    ref = Reference.from_value(piece)
+                    if ref:
+                        refs.append(ref)
         else:
             ref = Reference.from_value(element)
             if ref:

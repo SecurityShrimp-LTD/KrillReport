@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional, Tuple
 
-from ..models import FindingStatus
+from ..models import FindingStatus, Reference
 
 # Section heading (normalized, numbering stripped) -> target finding field.
 _SECTION_FIELD: Dict[str, str] = {
@@ -223,6 +223,48 @@ def _strip_operator_notes(text: str) -> str:
     return "\n\n".join(kept).strip()
 
 
+def _parse_references(body: str) -> List[Reference]:
+    """Parse a References section into individual references.
+
+    Handles the three shapes seen in hand-written Markdown: a pipe table (one ref per
+    data row), a bullet list (one ref per item), and a single line of pipe-separated
+    links. Markdown link syntax and bare URLs are resolved by ``Reference.from_value``.
+    """
+    lines = [ln for ln in body.split("\n") if ln.strip()]
+    if not lines:
+        return []
+
+    refs: List[Reference] = []
+    is_table = any(_SEP_RE.match(ln) for ln in lines) and any("|" in ln for ln in lines)
+    if is_table:
+        header_skipped = False
+        for line in lines:
+            if _SEP_RE.match(line):
+                continue
+            cells = [c for c in _split_row(line) if c.strip()]
+            if not cells:
+                continue
+            has_url = any(re.search(r"https?://|\]\(", c) for c in cells)
+            if not has_url and not header_skipped:
+                header_skipped = True  # first URL-less row is the column header
+                continue
+            header_skipped = True
+            ref = Reference.from_value(" — ".join(cells))
+            if ref:
+                refs.append(ref)
+        return refs
+
+    # Bullet list / pipe-separated line(s): strip list markers, split on pipes.
+    for line in lines:
+        line = re.sub(r"^\s*[-*+]\s+", "", line.strip())
+        line = re.sub(r"^\s*\d+[.)]\s+", "", line)
+        for piece in line.split("|"):
+            ref = Reference.from_value(piece.strip())
+            if ref:
+                refs.append(ref)
+    return refs
+
+
 def _assets_from_value(value: str) -> List[str]:
     """Pull the primary identifier from a KV value (the first code span, else the value)."""
     spans = re.findall(r"`([^`]+)`", value)
@@ -293,7 +335,7 @@ def build_structured_record(text: str) -> Tuple[Dict[str, object], Optional[Find
     description_parts: List[str] = []
     impact_parts: List[str] = []
     remediation_parts: List[str] = []
-    reference_parts: List[str] = []
+    references: List[Reference] = []
 
     preamble_text = _strip_operator_notes(_strip_hr("\n".join(preamble_rest)))
     if preamble_text:
@@ -317,7 +359,7 @@ def build_structured_record(text: str) -> Tuple[Dict[str, object], Optional[Find
                 remediation_parts.append(body)
         elif field == "references":
             if body:
-                reference_parts.append(body)
+                references.extend(_parse_references(body))
         else:
             # Keep the section heading so the structure survives in the rendered finding.
             chunk = f"### {sec_title}"
@@ -330,7 +372,7 @@ def build_structured_record(text: str) -> Tuple[Dict[str, object], Optional[Find
         record["impact"] = "\n\n".join(impact_parts).strip()
     if remediation_parts:
         record["remediation"] = "\n\n".join(remediation_parts).strip()
-    if reference_parts:
-        record["references"] = "\n".join(reference_parts).strip()
+    if references:
+        record["references"] = references
 
     return record, status
