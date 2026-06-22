@@ -13,11 +13,19 @@ from typing import Dict, Iterable, Optional
 from ..models import NormalizedReport
 from ..template_engine import Branding
 from .docx_renderer import DocxRenderer
+from .docx_template_renderer import DocxTemplateRenderer
 from .pdf_renderer import PdfRenderer
 from .sanitize import sanitize_report
 from .sections import build_context
 
-__all__ = ["DocxRenderer", "PdfRenderer", "render_reports", "build_context", "sanitize_report"]
+__all__ = [
+    "DocxRenderer",
+    "DocxTemplateRenderer",
+    "PdfRenderer",
+    "render_reports",
+    "build_context",
+    "sanitize_report",
+]
 
 
 def render_reports(
@@ -26,8 +34,14 @@ def render_reports(
     output_dir: Path,
     basename: str,
     formats: Iterable[str] = ("pdf", "docx"),
+    layout_template: Optional[Path] = None,
 ) -> Dict[str, Path]:
-    """Render the report in the requested formats; return ``{format: path}``."""
+    """Render the report in the requested formats; return ``{format: path}``.
+
+    When ``layout_template`` (a ``.docx``) is given, the DOCX is rendered *into* that
+    template for layout fidelity; the PDF still uses the built-in layout (template PDF
+    parity is a later phase).
+    """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     # Strip XML-illegal control characters so neither renderer can be handed an
@@ -38,5 +52,11 @@ def render_reports(
     if "pdf" in formats:
         outputs["pdf"] = PdfRenderer().render(report, branding, output_dir / f"{basename}.pdf")
     if "docx" in formats:
-        outputs["docx"] = DocxRenderer().render(report, branding, output_dir / f"{basename}.docx")
+        docx_path = output_dir / f"{basename}.docx"
+        if layout_template is not None:
+            outputs["docx"] = DocxTemplateRenderer().render(
+                report, branding, docx_path, Path(layout_template)
+            )
+        else:
+            outputs["docx"] = DocxRenderer().render(report, branding, docx_path)
     return outputs

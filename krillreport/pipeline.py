@@ -46,6 +46,7 @@ def run_pipeline(
     llm_settings: Optional[LLMSettings] = None,
     enhance: bool = True,
     attachments: Optional[Iterable[Path]] = None,
+    layout_template: Optional[Path] = None,
 ) -> PipelineResult:
     """Run the complete pipeline and return a :class:`PipelineResult`.
 
@@ -70,6 +71,9 @@ def run_pipeline(
     attachments:
         Files to reproduce verbatim as appendices (e.g. engagement scripts); never
         parsed as findings.
+    layout_template:
+        A ``.docx`` to render the DOCX report *into* (layout fidelity) instead of the
+        built-in layout.
     """
     input_paths = [Path(p) for p in input_paths]
     branding = branding or default_branding()
@@ -91,7 +95,10 @@ def run_pipeline(
     if not basename:
         basename = safe_filename(report.metadata.report_title or "security-report")
 
-    outputs = render_reports(report, branding, Path(output_dir), basename, formats)
+    outputs = render_reports(
+        report, branding, Path(output_dir), basename, formats,
+        layout_template=Path(layout_template) if layout_template else None,
+    )
 
     return PipelineResult(
         report=report,

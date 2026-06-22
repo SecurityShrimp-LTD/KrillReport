@@ -73,6 +73,9 @@ def cli(ctx: click.Context, data_dir: Optional[str], config_path: Optional[str],
 @click.option("--attach", "attachments", multiple=True,
               type=click.Path(exists=True, dir_okay=False),
               help="File to reproduce verbatim as an appendix (e.g. a script); repeatable.")
+@click.option("--layout-template", "layout_template", default=None,
+              type=click.Path(exists=True, dir_okay=False),
+              help="A .docx to render the DOCX report into (layout fidelity; see 'templates scaffold').")
 @click.option("--client", default=None, help="Override client name.")
 @click.option("--project", default=None, help="Override project name.")
 @click.option("--report-title", default=None, help="Override report title.")
@@ -91,6 +94,7 @@ def generate(
     formats,
     name,
     attachments,
+    layout_template,
     client,
     project,
     report_title,
@@ -124,6 +128,7 @@ def generate(
         llm_settings=llm_settings,
         enhance=not no_enhance,
         attachments=[Path(p) for p in attachments],
+        layout_template=Path(layout_template) if layout_template else None,
     )
     _print_result(result, branding.display_name)
 
@@ -195,6 +200,19 @@ def templates_list(settings: Settings) -> None:
             f"  {branding.name:<20} {branding.display_name:<26} "
             f"primary={branding.primary_color}  font={branding.heading_font}  {logo}"
         )
+
+
+@templates.command("scaffold")
+@click.option("-o", "--out", default="krill_layout_template.docx",
+              type=click.Path(dir_okay=False), help="Where to write the starter template.")
+def templates_scaffold(out: str) -> None:
+    """Write a starter .docx layout template (anchors + styles) to customise in Word."""
+    from ..template_engine.scaffold import build_scaffold_template
+
+    path = build_scaffold_template(Path(out))
+    click.secho(f"Wrote layout template: {path}", fg="green")
+    click.echo("Style it in Word, then: krillreport generate <inputs> --layout-template "
+               f"{path}")
 
 
 @templates.command("add")

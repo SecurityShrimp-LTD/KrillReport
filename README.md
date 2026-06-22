@@ -116,6 +116,8 @@ krillreport templates list                      # list available templates
 krillreport templates show acme-corp            # print a template's branding as JSON
 krillreport generate report.json -f pdf         # PDF only
 krillreport generate findings.md --attach poc.sh --attach setup.sh   # scripts → appendices
+krillreport templates scaffold -o layout.docx   # starter layout template (edit in Word)
+krillreport generate findings.md --layout-template layout.docx       # render DOCX into it
 krillreport generate report.json --no-enhance   # skip narrative enhancement
 krillreport generate report.json --provider anthropic   # use Claude for prose
 krillreport --help                              # full help
@@ -130,6 +132,7 @@ krillreport --help                              # full help
 | `-o, --output-dir` | Output directory (default `<data-dir>/output`). |
 | `--name` | Output filename stem. |
 | `--attach` | File reproduced verbatim as an appendix (e.g. an engagement script); repeatable. |
+| `--layout-template` | A `.docx` to render the DOCX report into for layout fidelity (see `templates scaffold`). |
 | `--client` / `--project` / `--report-title` | Metadata overrides. |
 | `--engagement-type` | e.g. `"Red Team"`, `"Penetration Test"`. |
 | `--classification` | Cover/header classification banner. |
@@ -155,6 +158,7 @@ krillreport serve            # http://127.0.0.1:8000
    - Upload one or more tool-output files — browse repeatedly or drag & drop to gather
      files from several folders; selections accumulate and can be removed individually.
    - Optionally add **Attachments** (scripts/configs) to include verbatim as appendices.
+   - Optionally add a **Layout template** (`.docx`) to render the DOCX into for layout fidelity.
    - Choose a branding template and output format(s).
    - Optionally expand *Engagement details* to set client/project/title/etc.
    - Optionally expand *Narrative enhancement* to pick an LLM provider (default `offline`).
@@ -196,6 +200,22 @@ Upload a sample branded report and KrillReport approximates its house style:
 Anything not detected falls back to clean defaults, and you can override any value
 (`krillreport templates add … --primary "#0E7C7B"`, or edit the saved
 `branding.json`). Templates live under `<data-dir>/templates/<name>/`.
+
+Branding is a *skin* applied to KrillReport's own layout. For **layout fidelity** — your
+cover, headers/footers, fonts and section structure — use a **layout template** instead:
+
+```bash
+krillreport templates scaffold -o layout.docx          # starter template with anchors
+# …style layout.docx in Word: cover art, fonts, headers/footers, etc…
+krillreport generate inputs/* --layout-template layout.docx -f docx
+```
+
+The DOCX is rendered *into* your template: scalar tokens (`{{report_title}}`, `{{client}}`,
+`{{date}}`, …) are replaced inline, and block anchors (`{{executive_summary}}`,
+`{{findings}}`, `{{asset_inventory}}`, …) — each alone on its own line — expand into the
+generated section using your template's styles. A template with **no** anchors still works:
+the full report is appended after its content. (PDF currently uses the built-in layout;
+template-faithful PDF is planned.)
 
 ---
 
