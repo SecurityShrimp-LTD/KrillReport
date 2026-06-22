@@ -1,5 +1,7 @@
 """Smoke tests for the web UI's accumulating file-upload enhancement."""
 
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from krillreport.api import app
@@ -12,6 +14,38 @@ def test_index_marks_file_inputs_for_accumulation():
     # Both the data-files and attachments inputs opt into JS accumulation.
     assert html.count("data-accumulate") == 2
     assert '/static/upload.js' in html
+
+
+def test_add_template_with_logo_override(tmp_path):
+    import io
+    import json
+    from PIL import Image
+    from docx import Document
+    from krillreport.api.app import create_app
+    from krillreport.config import get_settings
+
+    # Isolated app so the created template doesn't touch the real data dir.
+    iso = TestClient(create_app(get_settings(reload=True, data_dir=tmp_path)))
+    assert 'name="logo"' in iso.get("/").text  # the add-template form exposes the field
+
+    sbuf = io.BytesIO()
+    Document().save(sbuf)  # a sample with no usable logo
+    lbuf = io.BytesIO()
+    Image.new("RGB", (160, 50), (10, 90, 200)).save(lbuf, format="PNG")
+    r = iso.post(
+        "/templates",
+        files=[
+            ("sample", ("brand.docx", sbuf.getvalue(),
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document")),
+            ("logo", ("logo.png", lbuf.getvalue(), "image/png")),
+        ],
+        data={"name": "LogoTest"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    branding = json.loads((tmp_path / "templates" / "logotest" / "branding.json").read_text())
+    assert branding["logo_path"].endswith("logo.png")
+    assert Path(branding["logo_path"]).read_bytes() == lbuf.getvalue()
 
 
 def test_health_and_footer_report_libreoffice_status():

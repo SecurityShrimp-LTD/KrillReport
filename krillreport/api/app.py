@@ -202,6 +202,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     async def create_template(
         sample: UploadFile = File(...),
         name: str = Form(""),
+        logo: List[UploadFile] = File([]),
     ) -> RedirectResponse:
         suffix = Path(sample.filename or "").suffix.lower()
         tmp_dir = settings.upload_dir / f"tmpl_{uuid.uuid4().hex[:12]}"
@@ -209,7 +210,10 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         sample_path = tmp_dir / (Path(sample.filename or "sample").name or f"sample{suffix}")
         sample_path.write_bytes(await sample.read())
         manager = template_manager()
-        manager.create_from_sample(sample_path, name=name.strip() or None)
+        branding = manager.create_from_sample(sample_path, name=name.strip() or None)
+        logo_paths = await _save_uploads(logo, tmp_dir / "logo")
+        if logo_paths:
+            manager.set_logo(branding.name, logo_paths[0])
         return RedirectResponse(url="/", status_code=303)
 
     @app.post("/templates/{name}/delete")
@@ -250,11 +254,12 @@ async def _save_uploads(files: List[UploadFile], dest_dir: Path) -> List[Path]:
     for upload in files:
         if not upload.filename:
             continue
-        safe_name = Path(upload.filename).name  # strip any directory component
-        target = dest_dir / safe_name
         content = await upload.read()
         if not content:
             continue
+        dest_dir.mkdir(parents=True, exist_ok=True)  # only once we have a real file to save
+        safe_name = Path(upload.filename).name  # strip any directory component
+        target = dest_dir / safe_name
         target.write_bytes(content)
         saved.append(target)
     return saved

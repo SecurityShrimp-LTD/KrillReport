@@ -135,6 +135,7 @@ krillreport --help                              # full help
 | `--attach` | File reproduced verbatim as an appendix (e.g. an engagement script); repeatable. |
 | `--layout-template` | A `.docx` to render the DOCX report into for layout fidelity (see `templates scaffold`). |
 | `--css` | A CSS file appended to the PDF stylesheet to restyle it (no LibreOffice needed). |
+| `--logo` | A logo image to use for this run (overrides the template's logo). |
 | `--client` / `--project` / `--report-title` | Metadata overrides. |
 | `--engagement-type` | e.g. `"Red Team"`, `"Penetration Test"`. |
 | `--classification` | Cover/header classification banner. |
@@ -202,6 +203,12 @@ Upload a sample branded report and KrillReport approximates its house style:
 Anything not detected falls back to clean defaults, and you can override any value
 (`krillreport templates add … --primary "#0E7C7B"`, or edit the saved
 `branding.json`). Templates live under `<data-dir>/templates/<name>/`.
+
+The logo is the largest embedded image (EMF/WMF logos are converted via LibreOffice when
+available). If your sample's "logo" is WordArt/live text — or extraction picks the wrong
+image — supply one explicitly: `templates add brand.docx --logo logo.png`, a one-off
+`generate … --logo logo.png`, the **Logo (optional)** field on the web *Add template* form,
+or drop a `logo.<ext>` into the template folder.
 
 Branding is a *skin* applied to KrillReport's own layout. For **layout fidelity** — your
 cover, headers/footers, fonts and section structure — use a **layout template** instead:

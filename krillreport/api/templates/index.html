@@ -116,6 +116,11 @@
       <small>Upload a sample {{ template_extensions | join(' or ') }} report; fonts, colours and logo are extracted.</small>
     </label>
     <label class="field"><span class="label">Template name</span><input type="text" name="name" placeholder="ACME Corp"></label>
+    <label class="field">
+      <span class="label">Logo (optional)</span>
+      <input type="file" name="logo" accept="image/*">
+      <small>Use this image as the logo instead of auto-extraction (e.g. when the sample's logo is WordArt/text).</small>
+    </label>
     <button type="submit" class="btn">Add template</button>
   </form>
 </section>

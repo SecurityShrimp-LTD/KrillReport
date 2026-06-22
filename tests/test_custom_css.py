@@ -49,3 +49,24 @@ def test_custom_css_file_overrides_branding_json(tmp_path):
     mgr.save(b)                                  # branding.json has the red rule
     mgr.write_custom_css("T", "p { color: green; }")  # the file says green
     assert "green" in mgr.get("T").custom_css    # file wins
+
+
+def test_set_logo_override_replaces_extracted_logo(tmp_path):
+    from PIL import Image
+
+    mgr = TemplateManager(tmp_path / "templates")
+    b = mgr.create("T")
+    # Pretend an earlier logo.jpg was extracted.
+    (tmp_path / "templates" / "t" / "logo.jpg").write_bytes(b"old-jpeg-bytes")
+    b.logo_path = str(tmp_path / "templates" / "t" / "logo.jpg")
+    mgr.save(b)
+
+    override = tmp_path / "brand.png"
+    Image.new("RGB", (120, 40), (0, 128, 255)).save(override)
+    dest = mgr.set_logo("T", override)
+
+    assert dest.name == "logo.png"
+    # The old extracted logo is gone; only the override remains.
+    assert sorted(p.name for p in (tmp_path / "templates" / "t").glob("logo.*")) == ["logo.png"]
+    reloaded = mgr.get("T")
+    assert Path(reloaded.logo_path).read_bytes() == override.read_bytes()

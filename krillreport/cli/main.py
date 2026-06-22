@@ -78,6 +78,8 @@ def cli(ctx: click.Context, data_dir: Optional[str], config_path: Optional[str],
               help="A .docx to render the DOCX report into (layout fidelity; see 'templates scaffold').")
 @click.option("--css", "css_file", default=None, type=click.Path(exists=True, dir_okay=False),
               help="CSS file appended to the PDF stylesheet (restyle without LibreOffice).")
+@click.option("--logo", "logo_file", default=None, type=click.Path(exists=True, dir_okay=False),
+              help="Logo image to use for this run (overrides the template's logo).")
 @click.option("--client", default=None, help="Override client name.")
 @click.option("--project", default=None, help="Override project name.")
 @click.option("--report-title", default=None, help="Override report title.")
@@ -98,6 +100,7 @@ def generate(
     attachments,
     layout_template,
     css_file,
+    logo_file,
     client,
     project,
     report_title,
@@ -118,6 +121,8 @@ def generate(
     if css_file:
         extra = Path(css_file).read_text(encoding="utf-8")
         branding.custom_css = (branding.custom_css + "\n" + extra).strip()
+    if logo_file:
+        branding.logo_path = str(Path(logo_file))  # ad-hoc logo for this run
 
     overrides = _metadata_overrides(client, project, report_title, engagement_type, classification)
     llm_settings = _llm_settings(settings.llm, provider, model)
@@ -225,11 +230,13 @@ def templates_scaffold(out: str) -> None:
 @click.argument("sample", type=click.Path(exists=True, dir_okay=False))
 @click.option("--name", default=None, help="Template name (default: sample filename).")
 @click.option("--primary", default=None, help="Override primary colour (#RRGGBB).")
+@click.option("--logo", "logo_file", default=None, type=click.Path(exists=True, dir_okay=False),
+              help="Logo image to use (overrides auto-extraction).")
 @click.option("--css", "css_file", default=None, type=click.Path(exists=True, dir_okay=False),
               help="CSS file to bake into the template (appended to the PDF stylesheet).")
 @click.pass_obj
 def templates_add(settings: Settings, sample: str, name: Optional[str],
-                  primary: Optional[str], css_file: Optional[str]) -> None:
+                  primary: Optional[str], logo_file: Optional[str], css_file: Optional[str]) -> None:
     """Create a branding template from a sample .docx or PDF."""
     sample_path = Path(sample)
     if sample_path.suffix.lower() not in SUPPORTED_TEMPLATE_EXTENSIONS:
@@ -241,6 +248,9 @@ def templates_add(settings: Settings, sample: str, name: Optional[str],
     manager = TemplateManager(settings.templates_dir)
     overrides = {"primary_color": primary} if primary else None
     branding = manager.create_from_sample(sample_path, name=name, overrides=overrides)
+    if logo_file:
+        branding.logo_path = str(manager.set_logo(branding.name, Path(logo_file)))
+        click.echo(f"  set logo from {Path(logo_file).name}")
     if css_file:
         manager.write_custom_css(branding.name, Path(css_file).read_text(encoding="utf-8"))
         click.echo(f"  baked custom CSS from {Path(css_file).name}")

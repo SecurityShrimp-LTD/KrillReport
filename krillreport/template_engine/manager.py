@@ -114,6 +114,23 @@ class TemplateManager:
         path.write_text(css_text, encoding="utf-8")
         return path
 
+    def set_logo(self, name: str, logo_source: Path) -> Path:
+        """Copy an explicit logo into a template, overriding auto-extraction."""
+        logo_source = Path(logo_source)
+        template_dir = self.templates_dir / make_template_id(name)
+        template_dir.mkdir(parents=True, exist_ok=True)
+        # Remove any previously-extracted logo so logo_path is unambiguous.
+        for existing in template_dir.glob("logo.*"):
+            existing.unlink()
+        ext = logo_source.suffix.lower() or ".png"
+        dest = template_dir / f"logo{ext}"
+        shutil.copy2(logo_source, dest)
+        branding = self._load(template_dir)
+        if branding is not None:
+            branding.logo_path = str(dest)
+            self.save(branding)
+        return dest
+
     def create(self, name: str, branding: Optional[Branding] = None, **overrides: Any) -> Branding:
         """Create a template directly from a Branding object or field overrides."""
         slug = make_template_id(name)
