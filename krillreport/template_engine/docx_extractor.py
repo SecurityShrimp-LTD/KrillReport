@@ -10,6 +10,9 @@ raises — missing values simply fall back to defaults downstream.
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
+import tempfile
 import zipfile
 from collections import Counter
 from pathlib import Path
@@ -199,18 +202,40 @@ def _extract_page_size(doc, branding: Dict[str, Any]) -> None:
 
 
 def _extract_logo(doc, dest_dir: Path) -> Optional[Path]:
-    """Save the first embedded image (likely the logo) and return its path."""
-    for content_type, blob in _iter_image_blobs(doc):
-        ext = _ext_for_content_type(content_type)
-        if not ext or not blob:
-            continue
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        logo_path = dest_dir / f"logo{ext}"
+    """Extract the most logo-like embedded image and return its saved path.
+
+    Picks the **largest** raster image rather than the first — a real logo dwarfs the
+    bullet/icon/decoration images templates often also embed, and "first" depends on
+    unstable part ordering. EMF/WMF logos (Word's default for many pasted images, hence a
+    common "colours but no logo" case) are converted to PNG via LibreOffice when present.
+    """
+    images = [(ct, blob) for ct, blob in _iter_image_blobs(doc) if blob]
+    if not images:
+        return None
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    raster = sorted(
+        ((ct, b) for ct, b in images if _ext_for_content_type(ct)),
+        key=lambda cb: len(cb[1]), reverse=True,
+    )
+    for content_type, blob in raster:
+        logo_path = dest_dir / f"logo{_ext_for_content_type(content_type)}"
         try:
             logo_path.write_bytes(blob)
             return logo_path
         except OSError as exc:  # pragma: no cover
             logger.debug("Failed to write extracted logo: %s", exc)
+
+    # Only vector (EMF/WMF) images remain — convert the largest to PNG if we can.
+    vector = sorted(
+        ((ct, b) for ct, b in images if _is_emf_wmf(ct)),
+        key=lambda cb: len(cb[1]), reverse=True,
+    )
+    for content_type, blob in vector:
+        png = _convert_vector_to_png(blob, _emf_wmf_ext(content_type), dest_dir)
+        if png:
+            return png
+        break  # conversion unavailable — don't retry every vector image
     return None
 
 
@@ -239,16 +264,56 @@ def _iter_image_blobs(doc):
 
 
 def _ext_for_content_type(content_type: str) -> Optional[str]:
+    """Extension for a directly-embeddable raster image; ``None`` for vector/unknown."""
     mapping = {
         "image/png": ".png",
         "image/jpeg": ".jpg",
         "image/jpg": ".jpg",
         "image/gif": ".gif",
         "image/bmp": ".bmp",
-        "image/x-emf": None,  # EMF/WMF aren't usable by the renderers; skip.
-        "image/x-wmf": None,
     }
+    if _is_emf_wmf(content_type):  # handled by conversion, not direct embed
+        return None
     return mapping.get(content_type, ".png" if content_type.startswith("image/") else None)
+
+
+def _is_emf_wmf(content_type: str) -> bool:
+    return content_type in ("image/x-emf", "image/emf", "image/x-wmf", "image/wmf")
+
+
+def _emf_wmf_ext(content_type: str) -> str:
+    return ".emf" if "emf" in content_type else ".wmf"
+
+
+def _convert_vector_to_png(blob: bytes, src_ext: str, dest_dir: Path) -> Optional[Path]:
+    """Convert an EMF/WMF logo blob to ``logo.png`` via headless LibreOffice."""
+    binary = shutil.which("soffice") or shutil.which("libreoffice")
+    if not binary:
+        logger.info(
+            "Template logo is %s (vector); install LibreOffice to convert it to PNG.", src_ext
+        )
+        return None
+    with tempfile.TemporaryDirectory(prefix="krill_logo_") as tmp:
+        src = Path(tmp) / f"logo{src_ext}"
+        src.write_bytes(blob)
+        profile = Path(tmp) / "profile"
+        cmd = [
+            binary, "--headless", "--norestore", f"-env:UserInstallation=file://{profile}",
+            "--convert-to", "png", "--outdir", tmp, str(src),
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, timeout=90, check=False)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            logger.warning("EMF/WMF logo conversion failed to run: %s", exc)
+            return None
+        produced = Path(tmp) / "logo.png"
+        if result.returncode != 0 or not produced.exists():
+            logger.warning("EMF/WMF logo conversion produced no PNG (exit %s).", result.returncode)
+            return None
+        dest = dest_dir / "logo.png"
+        shutil.move(str(produced), str(dest))
+        logger.info("Converted %s template logo to PNG via LibreOffice.", src_ext)
+        return dest
 
 
 # --------------------------------------------------------------------------- #
