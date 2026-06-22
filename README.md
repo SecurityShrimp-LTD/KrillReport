@@ -214,8 +214,11 @@ The DOCX is rendered *into* your template: scalar tokens (`{{report_title}}`, `{
 `{{date}}`, …) are replaced inline, and block anchors (`{{executive_summary}}`,
 `{{findings}}`, `{{asset_inventory}}`, …) — each alone on its own line — expand into the
 generated section using your template's styles. A template with **no** anchors still works:
-the full report is appended after its content. (PDF currently uses the built-in layout;
-template-faithful PDF is planned.)
+the full report is appended after its content.
+
+For a **template-faithful PDF**, install **LibreOffice** (`soffice` on `PATH`): in
+layout-template mode the PDF is produced by converting the filled DOCX, so both outputs
+match. Without LibreOffice the PDF falls back to the built-in layout (a warning is logged).
 
 ---
 
