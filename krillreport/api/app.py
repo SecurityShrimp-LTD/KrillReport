@@ -84,6 +84,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     async def generate(
         request: Request,
         files: List[UploadFile] = File(...),
+        attachments: List[UploadFile] = File([]),
         template: str = Form("default"),
         formats: List[str] = Form([]),
         client: str = Form(""),
@@ -108,6 +109,9 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
                 _ui_context(request, error="No files were uploaded."),
                 status_code=400,
             )
+        attach_dir = upload_dir / "attachments"
+        attach_dir.mkdir(exist_ok=True)
+        attachment_paths = await _save_uploads(attachments, attach_dir)
 
         branding = template_manager().get(template)
         overrides = {
@@ -132,6 +136,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
                 metadata_overrides=overrides,
                 llm_settings=llm_settings,
                 enhance=(enhance == "on"),
+                attachments=attachment_paths,
             )
         except Exception as exc:  # surface a friendly error rather than a 500 page
             logger.exception("Report generation failed")

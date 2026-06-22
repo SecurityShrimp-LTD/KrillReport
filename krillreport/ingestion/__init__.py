@@ -11,6 +11,7 @@ downstream code is format-agnostic.
 
 from __future__ import annotations
 
+from .attachments import build_attachments
 from .base import BaseParser, ParseResult, ParserError, register_parser
 from .dispatcher import (
     detect_parser,
@@ -24,6 +25,7 @@ __all__ = [
     "ParseResult",
     "ParserError",
     "register_parser",
+    "build_attachments",
     "detect_parser",
     "ingest_file",
     "ingest_paths",

@@ -506,7 +506,16 @@ class DocxRenderer:
     def _appendices(self, doc: Document, report: NormalizedReport, branding: Branding) -> None:
         for index, appendix in enumerate(report.appendices, start=1):
             doc.add_heading(f"Appendix {index}: {appendix.title}", level=1)
-            self._markdown(doc, appendix.content, branding)
+            if appendix.language:
+                # Verbatim attachment (script/config): one monospaced code block.
+                para = doc.add_paragraph()
+                _shade_paragraph(para, "#1E2530")
+                run = para.add_run(appendix.content)
+                run.font.name = branding.mono_font
+                run.font.size = Pt(8.5)
+                run.font.color.rgb = RGBColor(0xE6, 0xED, 0xF3)
+            else:
+                self._markdown(doc, appendix.content, branding)
 
 
 def _add_inline_runs(paragraph, text: str, branding: Branding) -> None:

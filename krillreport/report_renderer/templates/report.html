@@ -305,7 +305,7 @@
 {% for ap in appendices %}
 <section class="section">
   <h2 id="appendix-{{ loop.index }}">Appendix {{ loop.index }}: {{ ap.title }}</h2>
-  {{ ap.content | md }}
+  {% if ap.language %}<pre class="md-code">{{ ap.content }}</pre>{% else %}{{ ap.content | md }}{% endif %}
 </section>
 {% endfor %}
 

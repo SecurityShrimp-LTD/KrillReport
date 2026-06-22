@@ -469,12 +469,18 @@ class EngagementMetadata(BaseModel):
 
 
 class Appendix(BaseModel):
-    """An arbitrary extra section appended after the findings."""
+    """An arbitrary extra section appended after the findings.
+
+    When ``language`` is set (e.g. an attached engagement script), the renderers emit
+    ``content`` verbatim as a monospaced code block instead of interpreting it as
+    Markdown; the value is a syntax hint (``bash``, ``python``, …).
+    """
 
     model_config = ConfigDict(extra="ignore")
 
     title: str
     content: str = ""
+    language: str = ""
 
 
 class SeverityCount(BaseModel):

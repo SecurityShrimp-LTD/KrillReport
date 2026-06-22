@@ -115,6 +115,7 @@ Other useful commands:
 krillreport templates list                      # list available templates
 krillreport templates show acme-corp            # print a template's branding as JSON
 krillreport generate report.json -f pdf         # PDF only
+krillreport generate findings.md --attach poc.sh --attach setup.sh   # scripts → appendices
 krillreport generate report.json --no-enhance   # skip narrative enhancement
 krillreport generate report.json --provider anthropic   # use Claude for prose
 krillreport --help                              # full help
@@ -128,6 +129,7 @@ krillreport --help                              # full help
 | `-f, --format` | `pdf` and/or `docx` (repeatable; default both). |
 | `-o, --output-dir` | Output directory (default `<data-dir>/output`). |
 | `--name` | Output filename stem. |
+| `--attach` | File reproduced verbatim as an appendix (e.g. an engagement script); repeatable. |
 | `--client` / `--project` / `--report-title` | Metadata overrides. |
 | `--engagement-type` | e.g. `"Red Team"`, `"Penetration Test"`. |
 | `--classification` | Cover/header classification banner. |

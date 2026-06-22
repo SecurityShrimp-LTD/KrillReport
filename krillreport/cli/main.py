@@ -70,6 +70,9 @@ def cli(ctx: click.Context, data_dir: Optional[str], config_path: Optional[str],
 @click.option("-f", "--format", "formats", multiple=True, type=click.Choice(["pdf", "docx"]),
               help="Output format(s); repeatable. Default: both.")
 @click.option("--name", default=None, help="Output filename stem.")
+@click.option("--attach", "attachments", multiple=True,
+              type=click.Path(exists=True, dir_okay=False),
+              help="File to reproduce verbatim as an appendix (e.g. a script); repeatable.")
 @click.option("--client", default=None, help="Override client name.")
 @click.option("--project", default=None, help="Override project name.")
 @click.option("--report-title", default=None, help="Override report title.")
@@ -87,6 +90,7 @@ def generate(
     template,
     formats,
     name,
+    attachments,
     client,
     project,
     report_title,
@@ -108,7 +112,8 @@ def generate(
     overrides = _metadata_overrides(client, project, report_title, engagement_type, classification)
     llm_settings = _llm_settings(settings.llm, provider, model)
 
-    click.echo(f"Ingesting {len(inputs)} file(s)…")
+    attach_note = f" (+{len(attachments)} attachment(s))" if attachments else ""
+    click.echo(f"Ingesting {len(inputs)} file(s){attach_note}…")
     result = run_pipeline(
         [Path(p) for p in inputs],
         output_dir=out_dir,
@@ -118,6 +123,7 @@ def generate(
         metadata_overrides=overrides,
         llm_settings=llm_settings,
         enhance=not no_enhance,
+        attachments=[Path(p) for p in attachments],
     )
     _print_result(result, branding.display_name)
 

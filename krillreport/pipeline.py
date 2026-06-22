@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from .config import LLMSettings
-from .ingestion import ParseResult, ingest_paths
+from .ingestion import ParseResult, build_attachments, ingest_paths
 from .llm_enhancer import Enhancer
 from .logging_config import get_logger
 from .models import NormalizedReport
@@ -45,6 +45,7 @@ def run_pipeline(
     metadata_overrides: Optional[Dict[str, Any]] = None,
     llm_settings: Optional[LLMSettings] = None,
     enhance: bool = True,
+    attachments: Optional[Iterable[Path]] = None,
 ) -> PipelineResult:
     """Run the complete pipeline and return a :class:`PipelineResult`.
 
@@ -66,6 +67,9 @@ def run_pipeline(
         LLM configuration; falls back to global settings when ``None``.
     enhance:
         When False, the narrative is left exactly as ingested.
+    attachments:
+        Files to reproduce verbatim as appendices (e.g. engagement scripts); never
+        parsed as findings.
     """
     input_paths = [Path(p) for p in input_paths]
     branding = branding or default_branding()
@@ -74,6 +78,9 @@ def run_pipeline(
     parse_results = ingest_paths(input_paths)
 
     report = normalize(parse_results, overrides=metadata_overrides)
+
+    if attachments:
+        report.appendices.extend(build_attachments([Path(p) for p in attachments]))
 
     mode = "disabled"
     if enhance:
