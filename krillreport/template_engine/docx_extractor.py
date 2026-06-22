@@ -9,6 +9,8 @@ raises — missing values simply fall back to defaults downstream.
 
 from __future__ import annotations
 
+import re
+import zipfile
 from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -21,6 +23,9 @@ logger = get_logger(__name__)
 
 # Heading style names to probe, in order of preference.
 _HEADING_STYLES = ("Heading 1", "Title", "Heading 2")
+# Theme scheme slots that carry a brand colour, in priority order (skip dk1/lt1/lt2,
+# which are body text / page background, not accents).
+_THEME_SLOTS = ("dk2", "accent1", "accent2", "accent5", "accent6", "accent3", "accent4")
 
 
 def extract_docx_branding(path: Path, dest_dir: Path) -> Dict[str, Any]:
@@ -33,7 +38,7 @@ def extract_docx_branding(path: Path, dest_dir: Path) -> Dict[str, Any]:
         return branding
 
     _extract_fonts(doc, branding)
-    _extract_colors(doc, branding)
+    _extract_colors(doc, branding, _read_theme_colors(path), _read_shading_fills(path))
     _extract_chrome(doc, branding)
     _extract_page_size(doc, branding)
 
@@ -65,32 +70,90 @@ def _extract_fonts(doc, branding: Dict[str, Any]) -> None:
             break
 
 
-def _extract_colors(doc, branding: Dict[str, Any]) -> None:
-    counter: Counter = Counter()
+def _extract_colors(
+    doc, branding: Dict[str, Any], theme: Dict[str, str], shading: List[str]
+) -> None:
+    """Pick primary/secondary/accent brand colours, preferring *intentional* sources.
 
-    # Colours explicitly applied to runs throughout the body.
-    for paragraph in doc.paragraphs:
-        for run in paragraph.runs:
-            hex_color = _run_color_hex(run)
-            if hex_color:
-                counter[hex_color] += 1
+    Tallying every coloured body run is unreliable: pentest templates routinely embed a
+    severity legend (red/amber/green swatches) that out-counts the real house colour. So
+    we trust deliberate style/theme choices first — explicit heading-style colours, then
+    the document theme scheme, then table shading — and only fall back to body-run
+    frequency when a document carries no theme or styled headings at all.
+    """
+    ordered: List[str] = []
 
-    # Colours defined on heading styles weigh strongly toward "primary".
+    def add(value: Optional[str]) -> None:
+        if not value:
+            return
+        hex_color = _to_hex(value)
+        if _is_brand_color(hex_color.lstrip("#")) and hex_color not in ordered:
+            ordered.append(hex_color)
+
+    # 1. Colours explicitly set on heading styles — the strongest signal of intent.
     for style_name in _HEADING_STYLES:
         try:
             color = doc.styles[style_name].font.color
             if color is not None and color.rgb is not None:
-                counter[str(color.rgb).upper()] += 5
+                add(str(color.rgb))
         except (KeyError, AttributeError, ValueError):
             continue
 
-    ranked = [c for c, _ in counter.most_common() if _is_brand_color(c)]
-    if ranked:
-        branding["primary_color"] = _to_hex(ranked[0])
-    if len(ranked) > 1:
-        branding["secondary_color"] = _to_hex(ranked[1])
-    if len(ranked) > 2:
-        branding["accent_color"] = _to_hex(ranked[2])
+    # 2. The document theme's brand slots (dk2 / accentN).
+    for slot in _THEME_SLOTS:
+        add(theme.get(slot))
+
+    # 3. Table-shading fills (header bands etc.) as a weaker hint.
+    for fill in shading:
+        add(fill)
+
+    # 4. Last resort only: the most frequent explicit body-run colour.
+    if not ordered:
+        counter: Counter = Counter()
+        for paragraph in doc.paragraphs:
+            for run in paragraph.runs:
+                hex_color = _run_color_hex(run)
+                if hex_color:
+                    counter[hex_color] += 1
+        for color, _ in counter.most_common():
+            add(color)
+
+    for field, value in zip(("primary_color", "secondary_color", "accent_color"), ordered):
+        branding[field] = value
+
+
+def _read_theme_colors(path: Path) -> Dict[str, str]:
+    """Read the ``<a:clrScheme>`` brand colours from the package's theme part."""
+    colors: Dict[str, str] = {}
+    try:
+        with zipfile.ZipFile(str(path)) as zf:
+            themes = [n for n in zf.namelist() if n.startswith("word/theme/") and n.endswith(".xml")]
+            if not themes:
+                return colors
+            xml = zf.read(sorted(themes)[0]).decode("utf-8", "replace")
+    except (OSError, KeyError, zipfile.BadZipFile):
+        return colors
+    scheme = re.search(r"<a:clrScheme.*?</a:clrScheme>", xml, re.S)
+    if not scheme:
+        return colors
+    for slot, body in re.findall(
+        r"<a:(dk1|lt1|dk2|lt2|accent[1-6]|hlink|folHlink)>(.*?)</a:\1>", scheme.group(0), re.S
+    ):
+        match = re.search(r'(?:srgbClr val="|lastClr=")([0-9A-Fa-f]{6})', body)
+        if match:
+            colors[slot] = match.group(1).upper()
+    return colors
+
+
+def _read_shading_fills(path: Path) -> List[str]:
+    """Return distinct non-white table/paragraph shading fills, most frequent first."""
+    try:
+        with zipfile.ZipFile(str(path)) as zf:
+            xml = zf.read("word/document.xml").decode("utf-8", "replace")
+    except (OSError, KeyError, zipfile.BadZipFile):
+        return []
+    counter = Counter(re.findall(r'<w:shd[^>]*w:fill="([0-9A-Fa-f]{6})"', xml))
+    return [c.upper() for c, _ in counter.most_common()]
 
 
 def _run_color_hex(run) -> Optional[str]:
