@@ -86,6 +86,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         files: List[UploadFile] = File(...),
         attachments: List[UploadFile] = File([]),
         layout_template: List[UploadFile] = File([]),
+        custom_css: List[UploadFile] = File([]),
         template: str = Form("default"),
         formats: List[str] = Form([]),
         client: str = Form(""),
@@ -118,6 +119,10 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         layout_paths = await _save_uploads(layout_template, layout_dir)
 
         branding = template_manager().get(template)
+        css_paths = await _save_uploads(custom_css, upload_dir / "css")
+        if css_paths:
+            extra = css_paths[0].read_text(encoding="utf-8", errors="replace")
+            branding.custom_css = (branding.custom_css + "\n" + extra).strip()
         overrides = {
             k: v
             for k, v in {

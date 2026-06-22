@@ -71,6 +71,11 @@ class Branding(BaseModel):
     # Optional per-severity colour overrides (hex), keyed by severity value.
     severity_colors: Dict[str, str] = Field(default_factory=dict)
 
+    # Raw CSS appended after the PDF's built-in stylesheet (operator-supplied), so the
+    # WeasyPrint output can be restyled to a house style without LibreOffice. User rules
+    # come last in the cascade, so they override the defaults.
+    custom_css: str = ""
+
     # Provenance.
     source_sample: str = ""
 

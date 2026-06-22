@@ -102,6 +102,9 @@
   table.md-table th { background: {{ branding.primary_color }}; color: #fff; text-align: left; padding: 5px 8px; font-family: {{ branding.heading_font_stack() }}; font-weight: 600; }
   table.md-table td { padding: 5px 8px; border: 1px solid #e5e9ed; vertical-align: top; }
   table.md-table tr:nth-child(even) td { background: #f7f9fa; }
+
+  /* ---- Operator custom CSS (overrides everything above) ------------- */
+{% if branding.custom_css %}{{ branding.custom_css | safe }}{% endif %}
 </style>
 </head>
 <body>

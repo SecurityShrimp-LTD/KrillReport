@@ -118,6 +118,7 @@ krillreport generate report.json -f pdf         # PDF only
 krillreport generate findings.md --attach poc.sh --attach setup.sh   # scripts → appendices
 krillreport templates scaffold -o layout.docx   # starter layout template (edit in Word)
 krillreport generate findings.md --layout-template layout.docx       # render DOCX into it
+krillreport generate findings.md --css house.css                     # restyle the PDF (no LibreOffice)
 krillreport generate report.json --no-enhance   # skip narrative enhancement
 krillreport generate report.json --provider anthropic   # use Claude for prose
 krillreport --help                              # full help
@@ -133,6 +134,7 @@ krillreport --help                              # full help
 | `--name` | Output filename stem. |
 | `--attach` | File reproduced verbatim as an appendix (e.g. an engagement script); repeatable. |
 | `--layout-template` | A `.docx` to render the DOCX report into for layout fidelity (see `templates scaffold`). |
+| `--css` | A CSS file appended to the PDF stylesheet to restyle it (no LibreOffice needed). |
 | `--client` / `--project` / `--report-title` | Metadata overrides. |
 | `--engagement-type` | e.g. `"Red Team"`, `"Penetration Test"`. |
 | `--classification` | Cover/header classification banner. |
@@ -219,6 +221,24 @@ the full report is appended after its content.
 For a **template-faithful PDF**, install **LibreOffice** (`soffice` on `PATH`): in
 layout-template mode the PDF is produced by converting the filled DOCX, so both outputs
 match. Without LibreOffice the PDF falls back to the built-in layout (a warning is logged).
+
+### Custom PDF styling (no LibreOffice)
+
+To restyle the built-in PDF to your house style without LibreOffice, append your own CSS —
+it is added after the built-in stylesheet, so your rules win:
+
+```bash
+krillreport generate inputs/* --css house.css          # ad-hoc for one run
+krillreport templates add brand.docx --name Acme --css house.css   # bake into a template
+```
+
+You can also drop a `custom.css` into a template folder
+(`<data-dir>/templates/<name>/custom.css`) and edit it directly, or upload one in the web
+UI. Useful selectors: `.cover-band` / `.cover-title` / `.cover-sub` (cover), `h2`, `h3`,
+`h4` (section headings), `table.grid` / `table.grid th` (summary & asset tables),
+`.meta-table` (finding metadata), `.finding` (a finding card), `.badge` (severity pills),
+`pre.evidence` (evidence blocks), `table.md-table` / `pre.md-code` (rendered Markdown),
+and `@page` (margins/size).
 
 ---
 

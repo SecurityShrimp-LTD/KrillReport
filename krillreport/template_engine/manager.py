@@ -25,6 +25,7 @@ from .extractor import SUPPORTED_TEMPLATE_EXTENSIONS, extract_branding
 logger = get_logger(__name__)
 
 _BRANDING_FILE = "branding.json"
+_CUSTOM_CSS_FILE = "custom.css"
 DEFAULT_TEMPLATE_NAME = "default"
 
 
@@ -105,6 +106,14 @@ class TemplateManager:
         logger.info("Created template %r from %s", slug, sample_path.name)
         return branding
 
+    def write_custom_css(self, name: str, css_text: str) -> Path:
+        """Write ``custom.css`` into a template dir (the editable PDF-restyle source)."""
+        template_dir = self.templates_dir / make_template_id(name)
+        template_dir.mkdir(parents=True, exist_ok=True)
+        path = template_dir / _CUSTOM_CSS_FILE
+        path.write_text(css_text, encoding="utf-8")
+        return path
+
     def create(self, name: str, branding: Optional[Branding] = None, **overrides: Any) -> Branding:
         """Create a template directly from a Branding object or field overrides."""
         slug = make_template_id(name)
@@ -148,7 +157,16 @@ class TemplateManager:
             return None
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-            return Branding(**data)
+            branding = Branding(**data)
         except (json.JSONDecodeError, OSError, ValueError) as exc:
             logger.warning("Could not load template at %s: %s", template_dir, exc)
             return None
+        # A standalone custom.css in the template dir is the editable source of truth for
+        # PDF restyling — if present it overrides whatever is stored in branding.json.
+        css_path = template_dir / _CUSTOM_CSS_FILE
+        if css_path.exists():
+            try:
+                branding.custom_css = css_path.read_text(encoding="utf-8")
+            except OSError as exc:
+                logger.warning("Could not read %s: %s", css_path, exc)
+        return branding
