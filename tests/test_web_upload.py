@@ -14,6 +14,13 @@ def test_index_marks_file_inputs_for_accumulation():
     assert '/static/upload.js' in html
 
 
+def test_health_and_footer_report_libreoffice_status():
+    health = client.get("/api/health").json()
+    assert "libreoffice" in health and isinstance(health["libreoffice"], bool)
+    footer = client.get("/").text
+    assert ("LibreOffice (exact)" in footer) or ("built-in layout" in footer)
+
+
 def test_upload_js_and_styles_served():
     js = client.get("/static/upload.js")
     assert js.status_code == 200

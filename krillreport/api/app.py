@@ -32,6 +32,7 @@ from ..config import LLMSettings, Settings, get_settings
 from ..ingestion import supported_extensions
 from ..logging_config import configure_logging, get_logger
 from ..pipeline import run_pipeline
+from ..report_renderer.docx_to_pdf import libreoffice_available
 from ..template_engine import SUPPORTED_TEMPLATE_EXTENSIONS, TemplateManager
 
 logger = get_logger(__name__)
@@ -49,6 +50,14 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level)
     settings.ensure_dirs()
+
+    if libreoffice_available():
+        logger.info("LibreOffice detected — template PDFs will be rendered exactly (DOCX→PDF).")
+    else:
+        logger.info(
+            "LibreOffice not found — template PDFs fall back to the built-in layout. "
+            "Install libreoffice-writer for exact PDF fidelity."
+        )
 
     app = FastAPI(title="KrillReport", version=__version__)
     templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
@@ -68,6 +77,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             "providers": _PROVIDERS,
             "current_provider": settings.llm.provider,
             "llm_enabled": settings.llm.enabled,
+            "libreoffice": libreoffice_available(),
         }
         context.update(extra)
         return context
@@ -219,6 +229,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
                 "version": __version__,
                 "llm_provider": settings.llm.provider,
                 "llm_enabled": settings.llm.enabled,
+                "libreoffice": libreoffice_available(),
             }
         )
 
