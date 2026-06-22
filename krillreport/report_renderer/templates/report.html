@@ -76,8 +76,11 @@
   table.grid tr:nth-child(even) td { background: #f7f9fa; }
 
   /* ---- Finding card -------------------------------------------------- */
-  .finding { margin-top: 22px; break-inside: avoid-page; }
-  .finding-head { display: flex; align-items: center; gap: 10px; }
+  /* Findings may run longer than a page (structured single-finding reports), so they
+     flow across pages; only the head + metadata table are kept together. */
+  .finding { margin-top: 22px; }
+  .finding-head { display: flex; align-items: center; gap: 10px; break-after: avoid; }
+  .meta-table { break-inside: avoid; }
   .finding-head h3 { margin: 0; flex: 1; color: {{ branding.primary_color }}; }
   .meta-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9pt; }
   .meta-table td { padding: 4px 8px; border: 1px solid #e5e9ed; }
@@ -87,6 +90,18 @@
   ul.assets { margin: 4px 0; padding-left: 18px; }
   .section { break-inside: auto; }
   .no-findings { padding: 14px; background: #eef7ee; border-left: 4px solid #2e7d32; border-radius: 3px; }
+
+  /* ---- Rendered Markdown prose -------------------------------------- */
+  code { font-family: {{ branding.mono_font_stack() }}; background: #eef1f4; padding: 0 3px; border-radius: 3px; font-size: 9pt; word-break: break-word; }
+  .md-h { font-weight: 700; color: {{ branding.secondary_color }}; font-size: 10.5pt; margin: 12px 0 2px; }
+  ul.md-list, ol.md-list { margin: 6px 0; padding-left: 20px; }
+  ul.md-list li, ol.md-list li { margin: 2px 0; }
+  pre.md-code { background: #1e2530; color: #e6edf3; padding: 10px 12px; border-radius: 4px; font-family: {{ branding.mono_font_stack() }}; font-size: 8.5pt; white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; }
+  blockquote.md-quote { margin: 6px 0; padding: 4px 12px; border-left: 3px solid {{ branding.accent_color }}; color: {{ branding.muted_color }}; font-style: italic; }
+  table.md-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9pt; }
+  table.md-table th { background: {{ branding.primary_color }}; color: #fff; text-align: left; padding: 5px 8px; font-family: {{ branding.heading_font_stack() }}; font-weight: 600; }
+  table.md-table td { padding: 5px 8px; border: 1px solid #e5e9ed; vertical-align: top; }
+  table.md-table tr:nth-child(even) td { background: #f7f9fa; }
 </style>
 </head>
 <body>
@@ -137,7 +152,7 @@
 {% if metadata.executive_summary %}
 <section class="section">
   <h2 id="sec-exec">Executive Summary</h2>
-  {{ metadata.executive_summary | paras }}
+  {{ metadata.executive_summary | md }}
 </section>
 {% endif %}
 
@@ -156,7 +171,7 @@
 {% if metadata.methodology %}
 <section class="section">
   <h2 id="sec-method">Methodology</h2>
-  {{ metadata.methodology | paras }}
+  {{ metadata.methodology | md }}
 </section>
 {% endif %}
 
@@ -218,10 +233,14 @@
       {% if f.affected_assets %}
       <tr><td class="k">Affected</td><td colspan="3">{{ f.affected_assets | join(', ') }}</td></tr>
       {% endif %}
+      {% set scan_rows = finding_scan_rows.get(f.id) %}
+      {% if scan_rows %}
+      <tr><td class="k">Scan Data</td><td colspan="3">{% for s in scan_rows %}{{ s }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
+      {% endif %}
     </table>
 
-    {% if f.description %}<h4>Description</h4>{{ f.description | paras }}{% endif %}
-    {% if f.impact %}<h4>Impact</h4>{{ f.impact | paras }}{% endif %}
+    {% if f.description %}<h4>Description</h4>{{ f.description | md }}{% endif %}
+    {% if f.impact %}<h4>Impact</h4>{{ f.impact | md }}{% endif %}
 
     {% if f.evidence %}
       <h4>Evidence</h4>
@@ -233,7 +252,7 @@
       {% endfor %}
     {% endif %}
 
-    {% if f.remediation %}<h4>Remediation</h4>{{ f.remediation | paras }}{% endif %}
+    {% if f.remediation %}<h4>Remediation</h4>{{ f.remediation | md }}{% endif %}
 
     {% if f.references %}
       <h4>References</h4>
@@ -258,7 +277,7 @@
 <section class="section">
   <h2 id="sec-assets">Asset Inventory</h2>
   <table class="grid">
-    <thead><tr><th>Host</th><th>IP Address</th><th>Operating System</th><th>Services</th></tr></thead>
+    <thead><tr><th>Host</th><th>IP Address</th><th>Operating System</th><th>Services</th>{% if has_findings %}<th>Findings</th>{% endif %}</tr></thead>
     <tbody>
     {% for h in hosts %}
       <tr>
@@ -266,6 +285,7 @@
         <td>{{ h.ip_address or '—' }}</td>
         <td>{{ h.operating_system or '—' }}</td>
         <td>{% for s in h.services %}{{ s.label() }}{% if not loop.last %}<br>{% endif %}{% endfor %}{% if not h.services %}—{% endif %}</td>
+        {% if has_findings %}<td>{% set nums = host_findings.get(h.identifier) %}{% if nums %}{{ nums | join(', ') }}{% else %}—{% endif %}</td>{% endif %}
       </tr>
     {% endfor %}
     </tbody>
@@ -277,7 +297,7 @@
 {% if metadata.conclusion %}
 <section class="section">
   <h2 id="sec-conclusion">Conclusion</h2>
-  {{ metadata.conclusion | paras }}
+  {{ metadata.conclusion | md }}
 </section>
 {% endif %}
 
@@ -285,7 +305,7 @@
 {% for ap in appendices %}
 <section class="section">
   <h2 id="appendix-{{ loop.index }}">Appendix {{ loop.index }}: {{ ap.title }}</h2>
-  {{ ap.content | paras }}
+  {{ ap.content | md }}
 </section>
 {% endfor %}
 

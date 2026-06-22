@@ -22,6 +22,7 @@ from ..logging_config import get_logger
 from ..models import Finding, NormalizedReport
 from ..template_engine import Branding, default_branding
 from ..template_engine.branding import hex_to_rgb
+from .markdown_render import inline_segments, parse_blocks
 from .sections import build_context
 
 logger = get_logger(__name__)
@@ -113,9 +114,9 @@ class DocxRenderer:
         self._cover(doc, branding, context)
         self._toc(doc)
 
-        self._narrative(doc, "Executive Summary", report.metadata.executive_summary)
+        self._narrative(doc, "Executive Summary", report.metadata.executive_summary, branding)
         self._scope(doc, context)
-        self._narrative(doc, "Methodology", report.metadata.methodology)
+        self._narrative(doc, "Methodology", report.metadata.methodology, branding)
 
         if context["has_findings"]:
             self._findings_summary(doc, branding, context)
@@ -127,8 +128,8 @@ class DocxRenderer:
         if context["has_hosts"]:
             self._asset_inventory(doc, branding, context)
 
-        self._narrative(doc, "Conclusion", report.metadata.conclusion)
-        self._appendices(doc, report)
+        self._narrative(doc, "Conclusion", report.metadata.conclusion, branding)
+        self._appendices(doc, report, branding)
 
         doc.save(str(output_path))
         logger.info("Wrote DOCX report: %s", output_path)
@@ -272,12 +273,11 @@ class DocxRenderer:
         )
         doc.add_page_break()
 
-    def _narrative(self, doc: Document, title: str, text: str) -> None:
+    def _narrative(self, doc: Document, title: str, text: str, branding: Branding) -> None:
         if not text or not text.strip():
             return
         doc.add_heading(title, level=1)
-        for block in _split_paragraphs(text):
-            doc.add_paragraph(block)
+        self._markdown(doc, text, branding)
 
     def _scope(self, doc: Document, context) -> None:
         scope = context["scope"]
@@ -342,9 +342,17 @@ class DocxRenderer:
     def _detailed_findings(self, doc: Document, branding: Branding, context) -> None:
         doc.add_heading("Detailed Findings", level=1)
         for num, finding in context["numbered_findings"]:
-            self._finding(doc, branding, num, finding)
+            scan_rows = context["finding_scan_rows"].get(finding.id)
+            self._finding(doc, branding, num, finding, scan_rows)
 
-    def _finding(self, doc: Document, branding: Branding, num: int, finding: Finding) -> None:
+    def _finding(
+        self,
+        doc: Document,
+        branding: Branding,
+        num: int,
+        finding: Finding,
+        scan_rows: Optional[List[str]] = None,
+    ) -> None:
         doc.add_heading(f"{num}. {finding.title}", level=2)
 
         # Severity call-out line.
@@ -368,6 +376,9 @@ class DocxRenderer:
             meta_rows.append(("CWE", ", ".join(finding.cwe)))
         if finding.affected_assets:
             meta_rows.append(("Affected", ", ".join(finding.affected_assets)))
+        # Correlated scan data (nmap etc.) for the affected assets.
+        if scan_rows:
+            meta_rows.append(("Scan Data", "\n".join(scan_rows)))
 
         table = doc.add_table(rows=0, cols=2)
         _apply_table_style(table, "Light List Accent 1")
@@ -379,8 +390,8 @@ class DocxRenderer:
             cells[1].paragraphs[0].add_run(value)
             cells[1].width = Inches(5.0)
 
-        self._labelled_prose(doc, "Description", finding.description)
-        self._labelled_prose(doc, "Impact", finding.impact)
+        self._labelled_prose(doc, "Description", finding.description, branding)
+        self._labelled_prose(doc, "Impact", finding.impact, branding)
 
         if finding.evidence:
             doc.add_heading("Evidence", level=3)
@@ -404,7 +415,7 @@ class DocxRenderer:
                     except Exception as exc:  # pragma: no cover
                         logger.debug("Could not embed evidence image: %s", exc)
 
-        self._labelled_prose(doc, "Remediation", finding.remediation)
+        self._labelled_prose(doc, "Remediation", finding.remediation, branding)
 
         if finding.references:
             doc.add_heading("References", level=3)
@@ -414,21 +425,73 @@ class DocxRenderer:
                     text = f"{text} — {ref.url}"
                 doc.add_paragraph(text, style="List Bullet")
 
-    def _labelled_prose(self, doc: Document, label: str, text: str) -> None:
+    def _labelled_prose(self, doc: Document, label: str, text: str, branding: Branding) -> None:
         if not text or not text.strip():
             return
         doc.add_heading(label, level=3)
-        for block in _split_paragraphs(text):
-            doc.add_paragraph(block)
+        self._markdown(doc, text, branding)
+
+    def _markdown(self, doc: Document, text: str, branding: Branding) -> None:
+        """Emit Markdown prose as native DOCX blocks (paragraphs, lists, tables, code)."""
+        for block in parse_blocks(text):
+            kind = block["kind"]
+            if kind == "heading":
+                para = doc.add_paragraph()
+                _add_inline_runs(para, block["text"], branding)
+                for run in para.runs:
+                    run.font.bold = True
+                    run.font.color.rgb = _rgb(branding.secondary_color)
+            elif kind == "para":
+                para = doc.add_paragraph()
+                _add_inline_runs(para, block["text"], branding)
+            elif kind in ("ulist", "olist"):
+                style = "List Number" if kind == "olist" else "List Bullet"
+                for item in block["items"]:
+                    para = doc.add_paragraph(style=style)
+                    _add_inline_runs(para, item, branding)
+            elif kind == "code":
+                para = doc.add_paragraph()
+                _shade_paragraph(para, "#1E2530")
+                run = para.add_run(block["text"])
+                run.font.name = branding.mono_font
+                run.font.size = Pt(8.5)
+                run.font.color.rgb = RGBColor(0xE6, 0xED, 0xF3)
+            elif kind == "quote":
+                para = doc.add_paragraph()
+                _add_inline_runs(para, block["text"], branding)
+                for run in para.runs:
+                    run.font.italic = True
+                    run.font.color.rgb = _rgb(branding.muted_color)
+            elif kind == "table":
+                self._markdown_table(doc, block, branding)
+
+    def _markdown_table(self, doc: Document, block, branding: Branding) -> None:
+        header = block["header"]
+        table = doc.add_table(rows=1, cols=len(header))
+        _apply_table_style(table, "Light Grid Accent 1")
+        for cell, label in zip(table.rows[0].cells, header):
+            _add_inline_runs(cell.paragraphs[0], label, branding)
+            for run in cell.paragraphs[0].runs:
+                run.font.bold = True
+        for row in block["rows"]:
+            cells = table.add_row().cells
+            for cell, value in zip(cells, row):
+                _add_inline_runs(cell.paragraphs[0], value, branding)
 
     def _asset_inventory(self, doc: Document, branding: Branding, context) -> None:
         doc.add_heading("Asset Inventory", level=1)
-        table = doc.add_table(rows=1, cols=4)
+        # A "Findings" column cross-references scanned hosts to the findings that hit them.
+        show_findings = context["has_findings"]
+        labels = ["Host", "IP Address", "Operating System", "Services"]
+        if show_findings:
+            labels.append("Findings")
+        table = doc.add_table(rows=1, cols=len(labels))
         _apply_table_style(table, "Light Grid Accent 1")
         headers = table.rows[0].cells
-        for i, label in enumerate(("Host", "IP Address", "Operating System", "Services")):
+        for i, label in enumerate(labels):
             run = headers[i].paragraphs[0].add_run(label)
             run.font.bold = True
+        host_findings = context["host_findings"]
         for host in context["hosts"]:
             cells = table.add_row().cells
             cells[0].paragraphs[0].add_run(host.hostname or "—")
@@ -436,21 +499,30 @@ class DocxRenderer:
             cells[2].paragraphs[0].add_run(host.operating_system or "—")
             services = "\n".join(s.label() for s in host.services) or "—"
             cells[3].paragraphs[0].add_run(services)
+            if show_findings:
+                nums = host_findings.get(host.identifier)
+                cells[4].paragraphs[0].add_run(", ".join(str(n) for n in nums) if nums else "—")
 
-    def _appendices(self, doc: Document, report: NormalizedReport) -> None:
+    def _appendices(self, doc: Document, report: NormalizedReport, branding: Branding) -> None:
         for index, appendix in enumerate(report.appendices, start=1):
             doc.add_heading(f"Appendix {index}: {appendix.title}", level=1)
-            for block in _split_paragraphs(appendix.content):
-                doc.add_paragraph(block)
+            self._markdown(doc, appendix.content, branding)
 
 
-def _split_paragraphs(text: str) -> List[str]:
-    """Split prose on blank lines into paragraph strings (single newlines preserved)."""
-    if not text:
-        return []
-    blocks = []
-    for raw in text.replace("\r\n", "\n").split("\n\n"):
-        block = raw.strip()
-        if block:
-            blocks.append(block)
-    return blocks or [text.strip()]
+def _add_inline_runs(paragraph, text: str, branding: Branding) -> None:
+    """Add styled runs to ``paragraph`` from inline Markdown (bold/italic/code/links)."""
+    for seg in inline_segments(text):
+        # A segment may carry hard line breaks; split so each becomes a Word break.
+        for line_no, piece in enumerate(seg.text.split("\n")):
+            if line_no:
+                paragraph.add_run().add_break()
+            if not piece:
+                continue
+            run = paragraph.add_run(piece)
+            run.font.bold = seg.bold
+            run.font.italic = seg.italic
+            if seg.code:
+                run.font.name = branding.mono_font
+            if seg.href:
+                run.font.underline = True
+                run.font.color.rgb = _rgb(branding.accent_color)

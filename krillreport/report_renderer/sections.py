@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import base64
 import mimetypes
+import re
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-from ..models import NormalizedReport
+from ..models import Finding, Host, NormalizedReport
 from ..normalization.severity import risk_posture
 
 # The canonical top-level section order shared by both renderers.
@@ -88,6 +89,57 @@ def severity_rows(report: NormalizedReport, branding) -> List[Dict[str, Any]]:
     return rows
 
 
+def host_summary(host: Host) -> str:
+    """Compact one-line scan summary of a host: ``name (ip) — OS — svc1, svc2``."""
+    head = host.hostname or host.ip_address or host.identifier
+    if host.hostname and host.ip_address and host.hostname != host.ip_address:
+        head = f"{host.hostname} ({host.ip_address})"
+    parts = [head]
+    if host.operating_system:
+        parts.append(host.operating_system)
+    services = ", ".join(s.label() for s in host.services if s.label())
+    if services:
+        parts.append(services)
+    return " — ".join(parts)
+
+
+def _finding_matches_host(finding: Finding, host: Host) -> bool:
+    """True when a finding's affected assets reference this scanned host (IP or name).
+
+    IP matching uses digit/dot boundaries so ``10.0.0.16`` never matches inside
+    ``10.0.0.169``; hostname matching uses word boundaries to avoid substring hits.
+    """
+    text = " ".join(finding.affected_assets).lower()
+    if not text:
+        return False
+    ip = host.ip_address.strip().lower()
+    if ip and re.search(r"(?<![\d.])" + re.escape(ip) + r"(?![\d.])", text):
+        return True
+    name = host.hostname.strip().lower()
+    if name and len(name) >= 3 and re.search(r"(?<![\w.-])" + re.escape(name) + r"(?![\w.-])", text):
+        return True
+    return False
+
+
+def correlate(
+    numbered: List[Tuple[int, Finding]], hosts: List[Host]
+) -> Tuple[Dict[str, List[str]], Dict[str, List[int]]]:
+    """Cross-reference findings and scanned hosts.
+
+    Returns ``(finding_scan_rows, host_findings)`` where ``finding_scan_rows`` maps a
+    finding id to compact summaries of the scanned hosts it affects, and
+    ``host_findings`` maps a host identifier to the finding numbers that reference it.
+    """
+    finding_scan_rows: Dict[str, List[str]] = {}
+    host_findings: Dict[str, List[int]] = {}
+    for num, finding in numbered:
+        for host in hosts:
+            if _finding_matches_host(finding, host):
+                finding_scan_rows.setdefault(finding.id, []).append(host_summary(host))
+                host_findings.setdefault(host.identifier, []).append(num)
+    return finding_scan_rows, host_findings
+
+
 def build_context(report: NormalizedReport, branding) -> Dict[str, Any]:
     """Assemble the full presentation context consumed by the renderers."""
     metadata = report.metadata
@@ -97,6 +149,10 @@ def build_context(report: NormalizedReport, branding) -> Dict[str, Any]:
     findings = report.sorted_findings()
     # Number findings for stable cross-referencing (Finding 1, 2, …).
     numbered = [(idx + 1, finding) for idx, finding in enumerate(findings)]
+
+    # Correlate findings with scanned hosts (nmap etc.) so supporting scan data
+    # corroborates the findings instead of sitting in a disconnected inventory.
+    finding_scan_rows, host_findings = correlate(numbered, report.hosts)
 
     return {
         "report": report,
@@ -121,5 +177,8 @@ def build_context(report: NormalizedReport, branding) -> Dict[str, Any]:
         "appendices": report.appendices,
         "has_findings": bool(findings),
         "has_hosts": bool(report.hosts),
+        "finding_scan_rows": finding_scan_rows,
+        "host_findings": host_findings,
+        "has_correlation": bool(finding_scan_rows),
         "logo_uri": image_data_uri(branding.logo_path),
     }

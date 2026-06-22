@@ -8,37 +8,20 @@ this package stays cheap when only DOCX output is needed.
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from markupsafe import Markup, escape
 
 from ..logging_config import get_logger
 from ..models import NormalizedReport
 from ..template_engine import Branding, default_branding
+from .markdown_render import to_html
 from .sections import build_context, image_data_uri
 
 logger = get_logger(__name__)
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
-_PARAGRAPH_SPLIT = re.compile(r"\n\s*\n")
-
-
-def _paras_filter(text: Optional[str]) -> Markup:
-    """Convert plain text into safe HTML paragraphs (blank line = new <p>, newline = <br>)."""
-    if not text:
-        return Markup("")
-    blocks = _PARAGRAPH_SPLIT.split(str(text).strip())
-    html_blocks = []
-    for block in blocks:
-        if not block.strip():
-            continue
-        # Escape first (escape() returns Markup), then turn single newlines into <br>.
-        safe = escape(block.strip()).replace("\n", Markup("<br>"))
-        html_blocks.append(Markup(f"<p>{safe}</p>"))
-    return Markup("\n".join(str(b) for b in html_blocks))
 
 
 class PdfRenderer:
@@ -51,7 +34,7 @@ class PdfRenderer:
             trim_blocks=True,
             lstrip_blocks=True,
         )
-        self.env.filters["paras"] = _paras_filter
+        self.env.filters["md"] = to_html
         self.env.filters["data_uri"] = image_data_uri
 
     def render_html(self, report: NormalizedReport, branding: Optional[Branding] = None) -> str:

@@ -14,6 +14,8 @@ from pathlib import Path
 from ..logging_config import get_logger
 from ..models import Appendix
 from .base import BaseParser, ParseResult, register_parser
+from .common import build_finding
+from .structured_finding import build_structured_record, looks_like_structured_finding
 from .text_extract import extract_findings_from_text
 from .text_parser import _sections_to_metadata
 
@@ -32,6 +34,17 @@ class MarkdownParser(BaseParser):
         result = ParseResult(source_file=path.name, parser=self.name)
         if not text.strip():
             result.warnings.append("Empty Markdown file.")
+            return result
+
+        # A document that *is* a single finding (titled sections + a Severity/CVSS
+        # metadata table) is mapped to one Finding, not split per heading.
+        if looks_like_structured_finding(text):
+            record, status = build_structured_record(text)
+            finding = build_finding(record, source_file=path.name)
+            if status is not None:
+                finding.status = status
+            result.findings = [finding]
+            logger.info("Parsed %s as a single structured finding.", path.name)
             return result
 
         # First H1 becomes the report title (if any).
