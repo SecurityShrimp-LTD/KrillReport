@@ -152,7 +152,9 @@ krillreport serve            # http://127.0.0.1:8000
    `.docx` or PDF and give it a name. Its colours, fonts and logo are extracted and it
    appears in the template list.
 3. **Generate a report** card:
-   - Upload one or more tool-output files.
+   - Upload one or more tool-output files — browse repeatedly or drag & drop to gather
+     files from several folders; selections accumulate and can be removed individually.
+   - Optionally add **Attachments** (scripts/configs) to include verbatim as appendices.
    - Choose a branding template and output format(s).
    - Optionally expand *Engagement details* to set client/project/title/etc.
    - Optionally expand *Narrative enhancement* to pick an LLM provider (default `offline`).

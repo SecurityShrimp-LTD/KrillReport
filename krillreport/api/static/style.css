@@ -47,6 +47,22 @@ input[type=text], select, input[type=file] {
   font-size: 14px;
   background: #fff;
 }
+/* Accumulating file picker (upload.js) */
+.field.dragover { outline: 2px dashed var(--accent); outline-offset: 4px; border-radius: 8px; }
+.filelist { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.filelist li {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #eef1f4; border: 1px solid var(--border); border-radius: 14px;
+  padding: 3px 6px 3px 11px; font-size: 13px;
+}
+.filelist .fname { font-weight: 500; }
+.filelist .fsize { color: var(--muted); font-size: 11px; }
+.filelist .fremove {
+  border: none; background: #cdd5dd; color: #1a1a1a; cursor: pointer;
+  width: 18px; height: 18px; border-radius: 50%; line-height: 1; font-size: 14px; padding: 0;
+}
+.filelist .fremove:hover { background: var(--danger); color: #fff; }
+
 .row { display: flex; gap: 18px; flex-wrap: wrap; }
 .row > .field { flex: 1; min-width: 220px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 8px; }
