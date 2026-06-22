@@ -1,0 +1,8 @@
+# Nmap 7.94 scan initiated Mon Jun 22 10:00:00 2026 as: nmap -sV -O -oG nmap_scan.gnmap 198.51.100.0/29
+Host: 198.51.100.5 (gw.example.com)	Status: Up
+Host: 198.51.100.5 (gw.example.com)	Ports: 22/open/tcp//ssh//OpenSSH 8.9p1 Ubuntu/, 80/open/tcp//http//nginx 1.24.0/, 443/open/tcp//https//nginx 1.24.0/, 3306/closed/tcp//mysql///	Ignored State: filtered (995)
+Host: 198.51.100.5 (gw.example.com)	OS: Linux 5.15	Seq Index: 260	IP ID Seq: All zeros
+Host: 198.51.100.9 (vpn.example.com)	Status: Up
+Host: 198.51.100.9 (vpn.example.com)	Ports: 443/open/tcp//https//OpenVPN/, 500/open/udp//isakmp///	Ignored State: filtered (998)
+Host: 198.51.100.12 ()	Status: Down
+# Nmap done at Mon Jun 22 10:01:00 2026 -- 8 IP addresses (2 hosts up) scanned in 60.00 seconds

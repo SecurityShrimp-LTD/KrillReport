@@ -13,8 +13,8 @@ turns them into a single, consistent, client-ready report that matches your hous
 ## Highlights
 
 - **Many input formats** — JSON, CSV/TSV, XML (Nessus, Burp, OpenVAS, Nmap, generic),
-  YAML, plain text, Markdown, and PDF. Tool-specific field names are mapped
-  automatically into one model.
+  Nmap grepable (`.gnmap`), YAML, plain text, Markdown, and PDF. Tool-specific field
+  names are mapped automatically into one model.
 - **Smart normalization** — findings are de-duplicated across sources (by CVE or
   normalized title), affected assets/evidence are merged, severities are reconciled with
   CVSS, and hosts are consolidated.
@@ -168,6 +168,7 @@ JSON endpoints are also available: `GET /api/health`, `GET /api/templates`.
 | JSON | `.json` | Objects, arrays, JSON Lines; nested tool structures auto-discovered. |
 | CSV / TSV | `.csv`, `.tsv` | Auto-detects findings vs host inventories from columns. |
 | XML | `.xml`, `.nessus` | Nessus `ReportItem`, Burp `issue`, OpenVAS `result`, Nmap hosts, generic. |
+| Nmap grepable | `.gnmap` | `nmap -oG` output → host inventory (open ports, services, OS). |
 | YAML | `.yaml`, `.yml` | Same structure handling as JSON; multi-document supported. |
 | Text | `.txt`, `.text`, `.log` | `Key: Value` blocks, `[Severity]` markers, narrative sections. |
 | Markdown | `.md`, `.markdown` | `#` title, `##`/`###` finding headings, labelled fields, code fences as evidence. |

@@ -17,6 +17,7 @@ from ..logging_config import get_logger
 # import order here is the dispatch priority order.
 from . import (  # noqa: F401
     csv_parser,
+    gnmap_parser,
     json_parser,
     markdown_parser,
     pdf_parser,
