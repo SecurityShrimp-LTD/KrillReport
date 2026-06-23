@@ -2,8 +2,22 @@
 
 from pathlib import Path
 
-from krillreport.ingestion.attachments import build_attachment, build_attachments, language_for
+import io
+
+from PIL import Image
+
+from krillreport.ingestion.attachments import (
+    build_attachment,
+    build_attachments,
+    is_image,
+    language_for,
+)
 from krillreport.pipeline import run_pipeline
+
+
+def _write_png(path: Path) -> Path:
+    Image.new("RGB", (40, 20), (12, 80, 200)).save(path, format="PNG")
+    return path
 
 SAMPLE_MD = Path(__file__).resolve().parents[1] / "examples" / "sample_inputs" / "manual_findings.md"
 
@@ -29,6 +43,32 @@ def test_build_attachments_skips_missing(tmp_path):
     good.write_text("echo a\n")
     result = build_attachments([good, tmp_path / "missing.sh"])
     assert [a.title for a in result] == ["a.sh"]
+
+
+def test_image_attachment_becomes_image_appendix(tmp_path):
+    img = _write_png(tmp_path / "screenshot.png")
+    assert is_image(img)
+    ap = build_attachment(img)
+    assert ap.title == "screenshot.png"
+    assert ap.image_path == str(img)
+    assert ap.language == ""  # not a verbatim code block
+    assert ap.content == ""   # binary not read as text
+
+
+def test_pipeline_embeds_image_attachment(tmp_path):
+    img = _write_png(tmp_path / "evidence.png")
+    result = run_pipeline(
+        [SAMPLE_MD],
+        output_dir=tmp_path / "out",
+        formats=["pdf", "docx"],
+        enhance=False,
+        attachments=[img],
+    )
+    images = [a for a in result.report.appendices if a.image_path]
+    assert len(images) == 1
+    assert images[0].image_path == str(img)
+    assert list((tmp_path / "out").glob("*.pdf"))
+    assert list((tmp_path / "out").glob("*.docx"))
 
 
 def test_pipeline_appends_attachments_as_appendices(tmp_path):

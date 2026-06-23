@@ -308,7 +308,9 @@
 {% for ap in appendices %}
 <section class="section">
   <h2 id="appendix-{{ loop.index }}">Appendix {{ loop.index }}: {{ ap.title }}</h2>
-  {% if ap.language %}<pre class="md-code">{{ ap.content }}</pre>{% else %}{{ ap.content | md }}{% endif %}
+  {% set ap_uri = ap.image_path | data_uri %}
+  {% if ap_uri %}<img src="{{ ap_uri }}" style="max-width:100%; border:1px solid #ccc; margin:6px 0;">{% if ap.content %}<div class="evidence-cap">{{ ap.content }}</div>{% endif %}
+  {% elif ap.language %}<pre class="md-code">{{ ap.content }}</pre>{% else %}{{ ap.content | md }}{% endif %}
 </section>
 {% endfor %}
 

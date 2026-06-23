@@ -72,7 +72,8 @@ def cli(ctx: click.Context, data_dir: Optional[str], config_path: Optional[str],
 @click.option("--name", default=None, help="Output filename stem.")
 @click.option("--attach", "attachments", multiple=True,
               type=click.Path(exists=True, dir_okay=False),
-              help="File to reproduce verbatim as an appendix (e.g. a script); repeatable.")
+              help="File to attach as an appendix — a script/config reproduced verbatim, "
+                   "or an image embedded as a picture; repeatable.")
 @click.option("--layout-template", "layout_template", default=None,
               type=click.Path(exists=True, dir_okay=False),
               help="A .docx to render the DOCX report into (layout fidelity; see 'templates scaffold').")

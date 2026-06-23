@@ -506,7 +506,19 @@ class DocxRenderer:
     def _appendices(self, doc: Document, report: NormalizedReport, branding: Branding) -> None:
         for index, appendix in enumerate(report.appendices, start=1):
             doc.add_heading(f"Appendix {index}: {appendix.title}", level=1)
-            if appendix.language:
+            if appendix.image_path and Path(appendix.image_path).exists():
+                # Image attachment (screenshot/diagram): embed the picture itself.
+                try:
+                    doc.add_picture(appendix.image_path, width=Inches(6.0))
+                except Exception as exc:  # pragma: no cover - corrupt/unsupported image
+                    logger.debug("Could not embed appendix image %s: %s", appendix.title, exc)
+                if appendix.content:
+                    cap = doc.add_paragraph()
+                    cap_run = cap.add_run(appendix.content)
+                    cap_run.font.italic = True
+                    cap_run.font.size = Pt(9)
+                    cap_run.font.color.rgb = _rgb(branding.muted_color)
+            elif appendix.language:
                 # Verbatim attachment (script/config): one monospaced code block.
                 para = doc.add_paragraph()
                 _shade_paragraph(para, "#1E2530")

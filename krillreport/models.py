@@ -474,6 +474,9 @@ class Appendix(BaseModel):
     When ``language`` is set (e.g. an attached engagement script), the renderers emit
     ``content`` verbatim as a monospaced code block instead of interpreting it as
     Markdown; the value is a syntax hint (``bash``, ``python``, …).
+
+    When ``image_path`` is set (an attached screenshot/diagram), the renderers embed
+    the image instead of rendering ``content``; ``content`` may still hold a caption.
     """
 
     model_config = ConfigDict(extra="ignore")
@@ -481,6 +484,7 @@ class Appendix(BaseModel):
     title: str
     content: str = ""
     language: str = ""
+    image_path: Optional[str] = None
 
 
 class SeverityCount(BaseModel):

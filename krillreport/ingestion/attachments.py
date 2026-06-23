@@ -30,15 +30,34 @@ _LANGUAGE_BY_EXT = {
     ".txt": "text", ".log": "text", ".md": "text",
 }
 
+# Raster/vector image extensions that the renderers can embed directly. Reading these
+# as text would produce binary garbage, so they become image appendices instead.
+_IMAGE_EXTS = {
+    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg", ".tif", ".tiff",
+}
+
 
 def language_for(path: Path) -> str:
     """Best-effort syntax hint for a file (defaults to ``text`` so it still renders raw)."""
     return _LANGUAGE_BY_EXT.get(path.suffix.lower(), "text")
 
 
+def is_image(path: Path) -> bool:
+    """True if the file should be embedded as an image rather than read as text."""
+    return Path(path).suffix.lower() in _IMAGE_EXTS
+
+
 def build_attachment(path: Path) -> Appendix:
-    """Read a file into a verbatim code :class:`Appendix` titled by its filename."""
+    """Turn a file into an :class:`Appendix` titled by its filename.
+
+    Image files are embedded as pictures; everything else is reproduced verbatim as a
+    monospaced code block.
+    """
     path = Path(path)
+    if is_image(path):
+        appendix = Appendix(title=path.name, image_path=str(path))
+        logger.info("Attached %s as an image appendix", path.name)
+        return appendix
     content = path.read_text(encoding="utf-8", errors="replace").rstrip("\n")
     appendix = Appendix(title=path.name, content=content, language=language_for(path))
     logger.info("Attached %s as a verbatim appendix (%s)", path.name, appendix.language)
