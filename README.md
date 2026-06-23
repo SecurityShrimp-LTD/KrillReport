@@ -69,7 +69,7 @@ libraries (Pango/Cairo).
 # 1. System libraries for WeasyPrint (Debian/Ubuntu example)
 sudo apt-get install -y libpango-1.0-0 libpangocairo-1.0-0 \
     libgdk-pixbuf-2.0-0 libffi-dev libcairo2
-#   macOS:  brew install pango cairo gdk-pixbuf libffi
+#   macOS:  see the "macOS (Homebrew)" section below — there's a DYLD path step
 
 # 2. Create a virtual environment and install
 python3 -m venv .venv && source .venv/bin/activate
@@ -83,6 +83,63 @@ pip install -e .          # installs the `krillreport` command
 ```
 
 > The default `offline` LLM provider needs none of the SDKs, no API key, and no network.
+
+### macOS (Homebrew)
+
+WeasyPrint wraps the GTK/Pango/Cairo C libraries, which macOS doesn't ship. Install them
+with Homebrew, then point the dynamic loader at them — the second step is the one people
+miss, because macOS strips `DYLD_*` vars and doesn't search Homebrew's lib dir by default.
+
+```bash
+# 1. Native libraries (pango pulls in glib/libgobject, cairo, harfbuzz, fontconfig)
+brew install pango
+
+# 2. Let the loader find them. Apple Silicon → /opt/homebrew/lib; Intel → /usr/local/lib
+export DYLD_FALLBACK_LIBRARY_PATH="/opt/homebrew/lib:$DYLD_FALLBACK_LIBRARY_PATH"
+#   Add that line to ~/.zshrc to make it permanent.
+
+# 3. Verify WeasyPrint can load its native deps
+python3 -c "from weasyprint import HTML; print('weasyprint ok')"
+```
+
+If you see `OSError: cannot load library 'libgobject-2.0-0'`, step 2 hasn't taken effect in
+the current shell — re-run the `export` and try again.
+
+**Fonts.** macOS system fonts (Helvetica, Times, Arial, …) work automatically through
+fontconfig, so most reports render with nothing extra. To install a guaranteed fallback set
+or a font your template requests, use Homebrew Cask:
+
+```bash
+brew install --cask font-dejavu font-liberation   # common fallbacks
+fc-cache -f                                        # refresh the font cache
+fc-list | grep -i dejavu                           # confirm fontconfig sees it
+brew search font-                                  # find other font cask names
+```
+
+> **Using conda/miniforge?** `conda install -c conda-forge pango` installs the libs on
+> conda's own search path, avoiding the `DYLD_FALLBACK_LIBRARY_PATH` step entirely. Run
+> `brew install pango` at the system level only if you're *not* inside a conda environment.
+
+> **PDF not working yet?** The DOCX renderer is pure Python with no native dependencies, so
+> `krillreport generate <inputs> --format docx` produces a complete report while you sort out
+> WeasyPrint.
+
+**LibreOffice (optional).** Only needed for the *template-faithful PDF* path
+(`--layout-template`, see [Branding & templates](#branding--templates)) — the default
+WeasyPrint PDF doesn't use it. Install the cask, then put `soffice` on `PATH`; the cask
+installs the binary *inside* the app bundle and does **not** symlink it for you:
+
+```bash
+brew install --cask libreoffice
+
+# Expose soffice — add to ~/.zshrc (Apple Silicon path shown)
+export PATH="/Applications/LibreOffice.app/Contents/MacOS:$PATH"
+soffice --version                                  # confirm it's callable
+```
+
+> Prefer a one-time symlink? `ln -s /Applications/LibreOffice.app/Contents/MacOS/soffice
+> /opt/homebrew/bin/soffice` (that dir is already on PATH on Apple Silicon; use
+> `/usr/local/bin` on Intel).
 
 ---
 
