@@ -10,8 +10,10 @@ from krillreport.ingestion.attachments import (
     build_attachment,
     build_attachments,
     is_image,
+    is_markdown,
     language_for,
 )
+from krillreport.report_renderer.markdown_render import to_html
 from krillreport.pipeline import run_pipeline
 
 
@@ -67,6 +69,54 @@ def test_pipeline_embeds_image_attachment(tmp_path):
     images = [a for a in result.report.appendices if a.image_path]
     assert len(images) == 1
     assert images[0].image_path == str(img)
+    assert list((tmp_path / "out").glob("*.pdf"))
+    assert list((tmp_path / "out").glob("*.docx"))
+
+
+def test_markdown_attachment_renders_as_formatted_markdown(tmp_path):
+    # A Markdown attachment (a companion results doc) is prose, not source to code-block:
+    # it gets no ``language`` so the renderers format it, and its H1 becomes the title.
+    doc = tmp_path / "DYNAMIC_RESULTS.md"
+    doc.write_text(
+        "# Dynamic Verification Results\n\n"
+        "## Environment\n\n| Item | Value |\n|---|---|\n| Host | Kali |\n\n"
+        "> a blockquote note\n"
+    )
+    assert is_markdown(doc)
+    ap = build_attachment(doc)
+    assert ap.title == "Dynamic Verification Results"  # promoted from the leading H1
+    assert ap.language == ""  # not a verbatim code block -> rendered as Markdown
+    assert ap.image_path is None
+    assert not ap.content.lstrip().startswith("# ")  # the leading H1 was consumed
+    # The renderers turn it into real Markdown structures (table, blockquote), not a dump.
+    html = to_html(ap.content)
+    assert "<table" in html and "<blockquote" in html
+
+
+def test_markdown_attachment_without_h1_falls_back_to_filename(tmp_path):
+    doc = tmp_path / "notes.md"
+    doc.write_text("Just some notes.\n\n## A section\n\ntext\n")
+    ap = build_attachment(doc)
+    assert ap.title == "notes.md"
+    assert ap.language == ""
+    assert ap.content.startswith("Just some notes.")  # content left intact
+
+
+def test_pipeline_attaches_markdown_as_formatted_appendix(tmp_path):
+    doc = tmp_path / "results.md"
+    doc.write_text("# Results\n\n| A | B |\n|---|---|\n| 1 | 2 |\n")
+    result = run_pipeline(
+        [SAMPLE_MD],
+        output_dir=tmp_path / "out",
+        formats=["pdf", "docx"],
+        enhance=False,
+        attachments=[doc],
+    )
+    md_appendices = [
+        a for a in result.report.appendices
+        if a.title == "Results" and not a.language and not a.image_path
+    ]
+    assert len(md_appendices) == 1
     assert list((tmp_path / "out").glob("*.pdf"))
     assert list((tmp_path / "out").glob("*.docx"))
 

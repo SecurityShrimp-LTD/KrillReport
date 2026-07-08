@@ -5,10 +5,17 @@ are operator-supplied artifacts (a custom ``.sh`` harness, a config) that should
 in the report exactly as written. Each attached file becomes one :class:`Appendix` whose
 ``content`` is the raw text and whose ``language`` (inferred from the extension) tells the
 renderers to emit it as a monospaced code block.
+
+**Markdown attachments are the exception.** A ``.md``/``.markdown`` file (e.g. a companion
+``DYNAMIC_RESULTS.md`` supporting document) is *prose*, not source to reproduce verbatim —
+so it is attached with **no ``language``**, which tells the renderers to format it as
+Markdown (headings, tables, code fences, blockquotes) rather than dump the raw source in a
+code block. Its leading ``# H1`` becomes the appendix title when present.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Iterable, List
 
@@ -16,6 +23,10 @@ from ..logging_config import get_logger
 from ..models import Appendix
 
 logger = get_logger(__name__)
+
+# Markdown attachments render as formatted Markdown (not a verbatim code block).
+_MARKDOWN_EXTS = {".md", ".markdown"}
+_H1_RE = re.compile(r"^#\s+(.*\S)\s*$", re.MULTILINE)
 
 # File extension -> syntax-highlight hint. Anything unknown still renders verbatim
 # (as ``text``) — the point of an attachment is to reproduce it as-is.
@@ -27,7 +38,7 @@ _LANGUAGE_BY_EXT = {
     ".sql": "sql", ".yaml": "yaml", ".yml": "yaml", ".json": "json",
     ".xml": "xml", ".html": "html", ".css": "css",
     ".conf": "ini", ".cfg": "ini", ".ini": "ini", ".toml": "toml",
-    ".txt": "text", ".log": "text", ".md": "text",
+    ".txt": "text", ".log": "text",
 }
 
 # Raster/vector image extensions that the renderers can embed directly. Reading these
@@ -47,21 +58,51 @@ def is_image(path: Path) -> bool:
     return Path(path).suffix.lower() in _IMAGE_EXTS
 
 
+def is_markdown(path: Path) -> bool:
+    """True if the file is a Markdown document (rendered formatted, not verbatim)."""
+    return Path(path).suffix.lower() in _MARKDOWN_EXTS
+
+
 def build_attachment(path: Path) -> Appendix:
     """Turn a file into an :class:`Appendix` titled by its filename.
 
-    Image files are embedded as pictures; everything else is reproduced verbatim as a
-    monospaced code block.
+    Image files are embedded as pictures; Markdown files are rendered as formatted
+    Markdown (with their leading ``# H1`` promoted to the appendix title); every other
+    file is reproduced verbatim as a monospaced code block.
     """
     path = Path(path)
     if is_image(path):
         appendix = Appendix(title=path.name, image_path=str(path))
         logger.info("Attached %s as an image appendix", path.name)
         return appendix
-    content = path.read_text(encoding="utf-8", errors="replace").rstrip("\n")
+
+    content = path.read_text(encoding="utf-8", errors="replace").strip("\n")
+
+    if is_markdown(path):
+        # No ``language`` -> the renderers format the Markdown instead of code-blocking it.
+        title, body = _split_markdown_title(content, fallback=path.name)
+        appendix = Appendix(title=title, content=body)
+        logger.info("Attached %s as a formatted Markdown appendix", path.name)
+        return appendix
+
     appendix = Appendix(title=path.name, content=content, language=language_for(path))
     logger.info("Attached %s as a verbatim appendix (%s)", path.name, appendix.language)
     return appendix
+
+
+def _split_markdown_title(content: str, *, fallback: str) -> tuple[str, str]:
+    """Promote a leading ``# H1`` to the appendix title, returning ``(title, body)``.
+
+    Only a *leading* H1 (the first non-blank line) is consumed, so the appendix heading
+    isn't duplicated by the document's own title. If there is no leading H1, the filename
+    is used and the content is left untouched.
+    """
+    stripped = content.lstrip("\n")
+    match = _H1_RE.match(stripped)
+    if match:
+        body = stripped[match.end():].lstrip("\n")
+        return match.group(1).strip(), body
+    return fallback, content
 
 
 def build_attachments(paths: Iterable[Path]) -> List[Appendix]:
