@@ -15,6 +15,7 @@ keywords = ["pentest", "red-team", "report", "security", "docx", "pdf"]
 dependencies = [
     "pydantic>=2.5",
     "pydantic-settings>=2.1",
+    "python-dotenv>=1.0",
     "PyYAML>=6.0",
     "lxml>=5.0",
     "python-docx>=1.1",

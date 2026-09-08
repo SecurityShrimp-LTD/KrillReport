@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 from typing import Optional, Tuple, Type
 
+from dotenv import load_dotenv
 from pydantic import Field, model_validator
 from pydantic_settings import (
     BaseSettings,
@@ -27,6 +28,14 @@ from pydantic_settings import (
     SettingsConfigDict,
     YamlConfigSettingsSource,
 )
+
+# pydantic-settings' own ``env_file=".env"`` support (below) only feeds matching
+# ``KRILLREPORT_*`` fields — it never exports the file into the process environment.
+# The provider-native fallbacks (``ANTHROPIC_API_KEY`` / ``OPENAI_API_KEY``, read
+# directly via ``os.getenv`` in each provider) therefore need the file actually
+# loaded into ``os.environ``. ``override=False`` preserves precedence: a real
+# environment variable always wins over the ``.env`` file.
+load_dotenv(override=False)
 
 # Sensible per-provider default models. Anthropic defaults to the current Opus model.
 DEFAULT_MODELS = {

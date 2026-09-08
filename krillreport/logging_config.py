@@ -66,6 +66,12 @@ def configure_logging(
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
+    # pdfminer (via pdfplumber) logs cosmetic warnings — e.g. "Could not get FontBBox
+    # from font descriptor" for PDFs with malformed/omitted font metadata — at
+    # WARNING, straight to stderr's lastResort handler since it has no handler of its
+    # own. The malformed metadata doesn't affect extraction, so quiet it to ERROR.
+    logging.getLogger("pdfminer").setLevel(logging.ERROR)
+
     _CONFIGURED = True
 
 
