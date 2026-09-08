@@ -245,10 +245,21 @@ class Reference(BaseModel):
         if link:
             return cls(title=link.group(1).strip(), url=link.group(2).strip())
         # A bare URL, possibly embedded in "Title — https://..." style text.
-        bare = re.search(r"https?://[^\s|)\]]+", text)
+        bare = re.search(r"https?://\S+", text)
         if bare:
-            url = bare.group(0)
-            title = text.replace(url, "").strip(" \t-—–:|[]()")
+            raw_url = bare.group(0)
+            # A pipe or closing bracket right after the URL is a list separator or
+            # Markdown artifact, not part of it.
+            url = re.split(r"[|\]]", raw_url, maxsplit=1)[0]
+            # Sentence-ending punctuation trailing the URL isn't part of it either.
+            url = url.rstrip(".,;:!?")
+            # A trailing paren only belongs to the URL if balanced within it —
+            # otherwise it's closing a wrapping paren from the surrounding prose (e.g.
+            # "(see https://example.com)"). A URL's own parenthesized segment, e.g.
+            # MSDN's "...(v=ws.10)", stays intact because it isn't at the very end.
+            while url.endswith(")") and url.count("(") < url.count(")"):
+                url = url[:-1]
+            title = text.replace(raw_url, "").strip(" \t-—–:|[]()")
             return cls(title=title or url, url=url)
         return cls(title=text, url="")
 

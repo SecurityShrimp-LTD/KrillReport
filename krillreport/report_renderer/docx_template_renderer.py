@@ -150,14 +150,14 @@ class DocxTemplateRenderer:
         }
         braced = {"{{" + key + "}}": str(value or "") for key, value in scalars.items()}
 
-        paragraphs = list(doc.paragraphs)
+        paragraphs = _all_paragraphs(doc, doc.element.body)
         for section in doc.sections:
             for chrome in (
                 section.header, section.footer,
                 section.first_page_header, section.first_page_footer,
                 section.even_page_header, section.even_page_footer,
             ):
-                paragraphs.extend(chrome.paragraphs)
+                paragraphs.extend(_all_paragraphs(doc, chrome._element))
 
         for paragraph in paragraphs:
             text = paragraph.text
@@ -175,6 +175,17 @@ class DocxTemplateRenderer:
                     for token, value in braced.items():
                         new_text = new_text.replace(token, value)
                     run.text = new_text
+
+
+def _all_paragraphs(doc, container) -> List[Paragraph]:
+    """Every paragraph under ``container``, including ones nested in tables and text boxes.
+
+    ``doc.paragraphs``/``chrome.paragraphs`` only return direct body children, so a
+    designed cover built from Word text boxes (``w:txbxContent``) is invisible to scalar
+    substitution even though the docstring promises tokens are replaced "wherever they
+    appear". Walking every descendant ``w:p`` closes that gap.
+    """
+    return [Paragraph(p, doc) for p in container.iter(qn("w:p"))]
 
 
 def _set_paragraph_text(paragraph: Paragraph, text: str) -> None:
